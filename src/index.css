@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* v4 依然支持 @apply */
+.up-color {
+  @apply text-red-500;
+}
+
+.down-color {
+  @apply text-green-500;
+}
