@@ -29,7 +29,10 @@
     "checkJs": false,
     "noImplicitAny": false,
 
-    "@/*": ["src/*"]
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src"]
 }

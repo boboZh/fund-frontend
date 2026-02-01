@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route }  from 'react-router-dom';
 import PermissionGuard from '@/router/PermissionGuard';
 import {routes} from '@/router/config'
