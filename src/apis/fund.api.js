@@ -4,15 +4,22 @@ import request from "../utils/request";
 export const apiGetPortfolio = (params = {}) =>
   request({
     method: "get",
-    url: "/portfolio",
+    url: "/fund/portfolioReport",
     params,
   });
 
-// 建仓
+// 导入基金
 export const apiImportFund = (data) =>
   request({
     method: "post",
-    url: "",
+    url: "/fund/add",
+    data,
+  });
+// 批量导入
+export const apiBatchImoportFund = (data) =>
+  request({
+    method: "post",
+    url: "/fund/batchAdd",
     data,
   });
 
@@ -20,13 +27,13 @@ export const apiImportFund = (data) =>
 export const apiGetFundInfo = (fundCode) =>
   request({
     method: "get",
-    url: `/fund-info/${fundCode}`,
+    url: `/fund/getInfoByCode/${fundCode}`,
   });
 
 // 上传图片获取持仓数据
 export const apiGetImgInfo = (data = {}) =>
   request({
     method: "post",
-    url: "/upload-screenshot",
+    url: "/fund/ocrAnalyze",
     data,
   });

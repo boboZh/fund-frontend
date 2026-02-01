@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, TrendingUp, Wallet, AlertCircle, Plus } from 'lucide-react'
 import AddFundModal from './components/AddFundModal';
-import { apiGetPortfolio, apiImportFund } from '@/apis/fund.api';
+import BatchAddFundModal from './components/BatchAddModal'
+import { apiGetPortfolio, apiImportFund, apiBatchImoportFund } from '@/apis/fund.api';
 
 const Dashbard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isBatchOpen, setIsBatchOpen] = useState(false)
+
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState('尚未同步')
@@ -12,7 +15,7 @@ const Dashbard = () => {
   const handleAddConfirm = async (newFunds) => {
     try {
       // 这里的 API 需要你在后端实现：接收数组并写入 portfolio.json
-      await apiImportFund({
+      await apiBatchImoportFund({
         funds: newFunds
       })
       setIsModalOpen(false);
@@ -27,7 +30,7 @@ const Dashbard = () => {
     setLoading(true)
     try {
       const response = await apiGetPortfolio()
-      setData(response) 
+      setData(response.data) 
       setLastUpdated(new Date().toLocaleTimeString())
     } catch (error) {
       console.error('获取数据失败：', error)
@@ -39,12 +42,22 @@ const Dashbard = () => {
   // 自动刷新逻辑
   useEffect(() => {
     fetchData() 
-    // const timer = setInterval(fetchData, 60000)
-    // return ()=> clearInterval(timer) 
-    return 
+    const timer = setInterval(fetchData, 360000)
+    return ()=> clearInterval(timer) 
   }, [fetchData]) 
   
   if (!data) return <div className='p-10 text-center'>正在连接后端服务...</div>
+
+  const isUp = (val) => {
+    if([null, undefined, '-', '--', 0].includes(val)) return 0
+    const _val = parseFloat(val) 
+    return _val > 0? 1: -1
+  }
+  const textColor = (val) => {
+    const up = isUp(val)  
+    if (up > 0) return 'text-red-500'
+    if(up<0) return 'text-green-500'
+  }
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 text-gray-800">
       <div className="max-w-5xl mx-auto">
@@ -58,13 +71,14 @@ const Dashbard = () => {
             </p>
           </div>
           <div className="flex gap-3">
-             {/* 新增添加按钮 */}
+            {/* 新增添加按钮 */}
+              <span className="flex items-center text-gray-700 px-1 py-2.5  transition cursor-pointer "  onClick={() => setIsModalOpen(true)}>新增持仓</span>
              <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => setIsBatchOpen(true)}
                 className="flex items-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-xl transition shadow-sm"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                新增持仓
+                批量导入
               </button>
 
               <button 
@@ -89,8 +103,7 @@ const Dashbard = () => {
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 relative overflow-hidden">
             <TrendingUp className="absolute right-4 bottom-4 w-16 h-16 text-gray-50" />
             <p className="text-gray-500 text-sm font-medium mb-1">当日预估盈亏</p>
-            <h2 className={`text-4xl font-black ${Number(data.summary.totalDailyProfit) >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-              {Number(data.summary.totalDailyProfit) >= 0 ? '+' : ''}
+            <h2 className={`text-4xl font-black ${ textColor(Number(data.summary.totalDailyProfit))}`}>
               {Number(data.summary.totalDailyProfit).toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </h2>
           </div>
@@ -114,16 +127,7 @@ const Dashbard = () => {
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
                 {data.funds.map((fund) => {
-                  const isUp = (val) => {
-                    if([null, undefined, '-', '--'].includes(val)) return 0
-                    const _val = parseFloat(val) 
-                    return _val > 0? 1: -1
-                  }
-                  const textColor = (val) => {
-                    const up = isUp(val)  
-                    if (up > 0) return 'text-red-500'
-                    if(up<0) return 'text-green-500'
-                  }
+                  
 
                   
                   return (
@@ -138,7 +142,7 @@ const Dashbard = () => {
                       <td className="px-8 py-5 text-right font-medium text-gray-600">
                         ¥{Number(fund.marketValue).toLocaleString()}
                       </td>
-                      <td className={`px-8 py-5 text-right font-black ${textColor(fund.dailyProfit)}`}>
+                      <td className={`px-8 py-5 text-right font-black ${textColor(Number(fund.dailyProfit))}`}>
                         {isUp(fund.dailyProfit) ? Number(fund.dailyProfit).toLocaleString(): '--'}
                       </td>
                     </tr>
@@ -155,13 +159,18 @@ const Dashbard = () => {
             <AlertCircle className="w-4 h-4 mr-2" />
             跌的第一天不要补 • 建仓最多两千 • 优十普五准备跑
           </div>
-          <p className="text-xs text-gray-300">—— 守住纪律，就是守住本金 ——</p>
+          <p className="text-xs text-gray-300">—— 跌涨幅为预估，仅做参考 ——</p>
         </div>
 
         <AddFundModal 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)}
           onConfirm={handleAddConfirm}
+        />
+        <BatchAddFundModal 
+          isOpen={isBatchOpen} 
+          onClose={() => setIsBatchOpen(false)}
+          onRefresh={fetchData}
         />
       </div>
     </div>

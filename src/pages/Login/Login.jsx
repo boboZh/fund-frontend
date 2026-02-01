@@ -2,28 +2,37 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Lock, Phone, Loader2 } from 'lucide-react';
+import { apiLogin } from '@/apis/user.api'
+import useStore from '@/store';
+
+
 
 const Login = () => {
+  const store = useStore()
   const [form, setForm] = useState({ phone: '', password: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const setLogin = (userData) => {
+    store.setLogin(userData)
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // 这里的接口需要在你的 Node.js 后端实现
-      const res = await axios.post('http://你的服务器IP:3000/api/login', form);
-      if (res.data.success) {
-        // 登录成功，保存 Token 或登录状态
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('token', res.data.token);
+      //  
+      const res = await apiLogin(form);
+      console.log('res: ', res)
+      if (res.data) {
+        setLogin(res.data)
         // 跳转到主页
-        navigate('/');
+        navigate('/fund-dashboard');
       } else {
         alert('登录失败：' + res.data.message);
       }
     } catch (err) {
+      console.error('网络错误或凭据错误: ', err)
       alert('网络错误或凭据错误');
     } finally {
       setLoading(false);

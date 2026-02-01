@@ -4,7 +4,7 @@ import { X, Upload, Keyboard, Trash2, Plus, Search, Loader2 } from 'lucide-react
 import { apiGetFundInfo, apiGetImgInfo } from '@/apis/fund.api';
 
 const AddFundModal = ({ isOpen, onClose, onConfirm }) => {
-  const [mode, setMode] = useState(null); // 'manual' | 'ocr' | null
+  const [mode, setMode] = useState('manual'); // 'manual' | 'ocr' | null
   const [loading, setLoading] = useState(false);
   
   // 手动输入状态
@@ -22,14 +22,24 @@ const AddFundModal = ({ isOpen, onClose, onConfirm }) => {
     try {
       // 假设后端有这个搜索接口
       const res = await apiGetFundInfo(manualData.code);
-      console.log('fund-info: ', res)
-      setManualData({ ...manualData, name: res.data.fundName });
+      if (!res.data.fundName) {
+        alert("未找到该基金");
+        setManualData({...manualData, name: ''})
+      } else {
+        setManualData({ ...manualData, name: res.data.fundName });
+      }
+      
     } catch (e) {
-      alert("未找到该基金，请手动输入名称");
+      alert("未找到该基金");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleClose = () => {
+    setManualData({ code: '', name: '', amount: '' })
+    onClose()
+  }
 
   // 2. 图片识别上传
   const handleFileUpload = async (e) => {
@@ -69,7 +79,7 @@ const AddFundModal = ({ isOpen, onClose, onConfirm }) => {
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b">
           <h3 className="text-xl font-bold text-gray-800">添加持仓数据</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition">
+          <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-full transition">
             <X className="w-6 h-6 text-gray-400" />
           </button>
         </div>
@@ -133,7 +143,7 @@ const AddFundModal = ({ isOpen, onClose, onConfirm }) => {
                 />
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setMode(null)} className="flex-1 py-3 rounded-xl bg-gray-100 font-bold">返回</button>
+                <button onClick={handleClose} className="flex-1 py-3 rounded-xl bg-gray-100 font-bold">取消</button>
                 <button 
                   onClick={() => onConfirm([manualData])}
                   className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 shadow-lg"
