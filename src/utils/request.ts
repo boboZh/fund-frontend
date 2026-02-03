@@ -14,6 +14,7 @@ request.interceptors.request.use(
     if (token) {
       config.headers["accessToken"] = `Bearer ${token}`;
     }
+    console.log("rquest: ", config);
     return config;
   },
   (error: AxiosError) => {

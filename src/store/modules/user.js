@@ -10,8 +10,9 @@ const createAuthModule = (set) => ({
   },
 
   setLogout: () => {
-    localStorage.removeItem("token");
-    set({ user: null, token: null, isLoggedIn: false });
+    localStorage.removeItem("user");
+    localStorage.removeItem("nickname");
+    set({ user: null, nickname: null, isLoggedIn: false });
   },
 });
 

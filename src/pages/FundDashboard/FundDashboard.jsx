@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, TrendingUp, Wallet, AlertCircle, Plus } from 'lucide-react'
 import AddFundModal from './components/AddFundModal';
 import BatchAddFundModal from './components/BatchAddModal'
-import { apiGetPortfolio, apiImportFund, apiBatchImoportFund } from '@/apis/fund.api';
+import { apiGetPortfolio, apiImportFund, apiBatchImoportFund, apiDeleteFund } from '@/apis/fund.api';
 
 const Dashbard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -38,6 +38,17 @@ const Dashbard = () => {
       setLoading(false)
     }
   }, []) 
+
+  const handleDeleteClick = async(fund) => {
+    try {
+      await apiDeleteFund({
+        fundCode: fund.code
+      })
+      fetchData()
+    } catch (error) {
+      console.error('删除失败：', error)
+    }
+  }
 
   // 自动刷新逻辑
   useEffect(() => {
@@ -123,6 +134,7 @@ const Dashbard = () => {
                   <th className="px-8 py-4 font-semibold text-right">实时预估</th>
                   <th className="px-8 py-4 font-semibold text-right">持仓金额</th>
                   <th className="px-8 py-4 font-semibold text-right">今日收益</th>
+                  <th className="px-8 py-4 font-semibold text-right">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
@@ -144,6 +156,9 @@ const Dashbard = () => {
                       </td>
                       <td className={`px-8 py-5 text-right font-black ${textColor(Number(fund.dailyProfit))}`}>
                         {isUp(fund.dailyProfit) ? Number(fund.dailyProfit).toLocaleString(): '--'}
+                      </td>
+                      <td className="px-8 py-5 text-right font-black">
+                        <button className='text-gray-700' onClick={() => handleDeleteClick(fund)}>删除</button>
                       </td>
                     </tr>
                   );

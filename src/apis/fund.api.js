@@ -37,3 +37,11 @@ export const apiGetImgInfo = (data = {}) =>
     url: "/fund/ocrAnalyze",
     data,
   });
+
+// 删除单个基金
+export const apiDeleteFund = (data) =>
+  request({
+    method: "post",
+    url: `/fund/delete`,
+    data,
+  });
