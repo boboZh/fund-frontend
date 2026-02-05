@@ -1,43 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState} from 'react';
+import type { ChangeEvent, } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { Lock, Phone, Loader2 } from 'lucide-react';
 import { apiLogin } from '@/apis/user.api'
 import useStore from '@/store';
+import { toast } from 'sonner'
 
 
 
-const Login = () => {
+const Login: React.FC = () => {
+
   const store = useStore()
   const [form, setForm] = useState({ phone: '', password: '' });
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+ 
 
-  const setLogin = (userData) => {
-    store.setLogin(userData)
-  }
-
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
       //  
       const res = await apiLogin(form);
-      console.log('res: ', res)
-      if (res.data) {
-        setLogin(res.data)
+      if (res.data) { 
+        store.setLogin(res.data)
         // 跳转到主页
         navigate('/fund-dashboard');
       } else {
-        alert('登录失败：' + res.data.message);
+        toast.error('登录失败：' + res.message);
       }
     } catch (err) {
       console.error('网络错误或凭据错误: ', err)
-      alert('网络错误或凭据错误');
+      toast.error('网络错误或凭据错误');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => { return {...prev, [name]: value} });
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -55,10 +58,11 @@ const Login = () => {
               <input
                 type="tel"
                 required
+                name="phone"
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 placeholder="请输入手机号"
                 value={form.phone}
-                onChange={e => setForm({ ...form, phone: e.target.value })}
+                onChange={handleChange}
               />
             </div>
           </div>
@@ -70,10 +74,11 @@ const Login = () => {
               <input
                 type="password"
                 required
+                name="password"
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
                 placeholder="请输入密码"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
+                onChange={handleChange}
               />
             </div>
           </div>

@@ -1,6 +1,16 @@
 import axios from "axios";
-import type { AxiosError, AxiosResponse } from "axios";
+import type {
+  AxiosError,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from "axios";
 import useStore from "@/store";
+
+export interface ApiResponse<T = any> {
+  code: string | number;
+  message: string;
+  data: T;
+}
 
 const request = axios.create({
   timeout: 30000,
@@ -9,12 +19,11 @@ const request = axios.create({
 });
 
 request.interceptors.request.use(
-  (config: any) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = useStore.getState().token;
     if (token) {
       config.headers["accessToken"] = `Bearer ${token}`;
     }
-    console.log("rquest: ", config);
     return config;
   },
   (error: AxiosError) => {
@@ -24,7 +33,7 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
   (response: AxiosResponse) => {
-    const { code, message, data } = response.data;
+    // const { code, message, data } = response.data;
 
     // switch (true) {
     //   case ["0000", 0, "00"].includes(code):
