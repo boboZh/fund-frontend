@@ -1,0 +1,143 @@
+import React, { useState, useRef, useEffect } from "react";
+import { Send, Bot, User, X, Loader2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import type { FundItem } from "@/types/fund";
+import useStore from "@/store";
+import { toast } from "sonner";
+
+interface AiAssistantProps {
+  funds: FundItem[];
+}
+
+const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
+  const store = useStore();
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string }[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 自动滚动到底部
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const userMsg = input;
+    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    setMessages((prev) => [...prev, { role: "ai", content: "" }]);
+    setIsTyping(true);
+
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMsg,
+          funds,
+          userNickname: store.user?.nickname || "用户",
+        }),
+        credentials: "include",
+      });
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+
+        setMessages((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          const updated = [
+            ...prev.slice(0, -1),
+            {
+              ...lastMsg,
+              content: lastMsg.content + chunk,
+            },
+          ];
+          return updated;
+        });
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50">
+      {!isOpen ? (
+        <button
+          onClick={() => setIsOpen(true)}
+          className="bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition active:scale-95"
+        >
+          <Bot className="w-6 h-6" />
+        </button>
+      ) : (
+        <div className="flex flex-col h-[500px] bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+          {/* Header */}
+          <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Bot className="w-5 h-5 animate-pulse" />
+              <span className="font-bold tracking-wide">AI 策略助手</span>
+            </div>
+            <X
+              className="cursor-pointer hover:rotate-90 transition"
+              onClick={() => setIsOpen(false)}
+            />
+          </div>
+          <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto bg-slate-50">
+            {/* 消息区域 */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                      msg.role === "user"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-white text-gray-800 shadow-sm border"
+                    }`}
+                  >
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                </div>
+              ))}
+              {isTyping && messages[messages.length - 1].content === "" && (
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+              )}
+            </div>
+          </div>
+          {/* 输入区域 */}
+          <div className="p-4 bg-white border-t flex gap-2">
+            <input
+              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder="问问 AI 助手..."
+            />
+            <button
+              onClick={handleSend}
+              className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AiAssistant;

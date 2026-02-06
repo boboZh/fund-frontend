@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, Search } from "lucide-react";
 import type { AddFundItem } from "@/types/fund";
 import { apiGetFundInfo } from "@/apis/fund.api";
+import { toast } from "sonner";
 
 interface AddFundModalProps {
   isOpen: boolean;
@@ -10,8 +11,6 @@ interface AddFundModalProps {
 }
 
 const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm }) => {
-  const [loading, setLoading] = useState(false);
-
   // 手动输入状态
   const [manualData, setManualData] = useState<AddFundItem>({ code: "", name: "", amount: "" });
 
@@ -21,20 +20,17 @@ const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm 
   const handleSearchFund = async () => {
     const allStockRegex = /\b([A-Z]{1,5}(\.[A-Z]{1,2})?|(\d{5,6})(\.(HK|SH|SZ|BJ))?)\b/g;
     if (manualData.code.match(allStockRegex) === null) return;
-    setLoading(true);
     try {
       // 假设后端有这个搜索接口
       const res = await apiGetFundInfo(manualData.code);
       if (!res.data.fundName) {
-        alert("未找到该基金");
+        toast.error("未找到该基金");
         setManualData({ ...manualData, name: "" });
       } else {
         setManualData({ ...manualData, name: res.data.fundName });
       }
     } catch (e) {
-      alert("未找到该基金");
-    } finally {
-      setLoading(false);
+      toast.error(e instanceof Error ? e.message : "未找到该基金");
     }
   };
 

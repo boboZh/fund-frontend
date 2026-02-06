@@ -13,7 +13,7 @@ export interface FundTableProps<T> {
   handleDelete: (fund: T) => void;
 }
 
-const FundTable: React.FC<FundTableProps> = ({ columns, funds, handleDelete }) => {
+const FundTable: React.FC<FundTableProps<FundItem>> = ({ columns, funds, handleDelete }) => {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left">
@@ -39,6 +39,7 @@ const FundTable: React.FC<FundTableProps> = ({ columns, funds, handleDelete }) =
                   if (item.key === "op")
                     return (
                       <td
+                        key={item.key}
                         className="px-8 py-5 text-right cursor-pointer text-nowrap"
                         onClick={() => handleDelete(fund)}
                       >

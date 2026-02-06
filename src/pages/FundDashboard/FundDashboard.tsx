@@ -6,6 +6,7 @@ import { apiGetPortfolio, apiBatchImoportFund, apiDeleteFund } from "@/apis/fund
 import FundTable, { type Column } from "./components/FundTable";
 import { toast } from "sonner";
 import type { PortfolioData, FundItem, AddFundItem } from "@/types/fund";
+import AiAssistant from "@/components/AiAssistant";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,7 +28,7 @@ const Dashbard: React.FC = () => {
   // 自动刷新逻辑
   useEffect(() => {
     fetchData();
-    const timer = setInterval(fetchData, 360000);
+    const timer = setInterval(fetchData, 3600000);
     return () => clearInterval(timer);
   }, [fetchData]);
 
@@ -90,7 +91,7 @@ const Dashbard: React.FC = () => {
     },
     {
       name: "持仓金额",
-      key: "marketValue",
+      key: "amount",
       colClassName: "font-black",
     },
     {
@@ -193,6 +194,8 @@ const Dashbard: React.FC = () => {
           onClose={() => setIsBatchOpen(false)}
           onRefresh={fetchData}
         />
+
+        <AiAssistant funds={data.funds} />
       </div>
     </div>
   );
