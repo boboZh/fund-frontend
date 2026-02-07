@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "@/utils/request"; // 之前封装的带凭证的axios
 import { apiGetImgInfo, apiGetFundInfo } from "../../../apis/fund.api";
 import type { AddFundItem } from "@/types/fund";
+import { allStockRegex } from "@/utils/tools";
 
 interface BatchAddFundModalProps {
   isOpen: boolean;
@@ -40,7 +41,6 @@ const BatchAddFundModal: React.FC<BatchAddFundModalProps> = ({ isOpen, onClose, 
     const item = newList[index];
     if (!item) return;
     item.code = e.target.value;
-    const allStockRegex = /\b([A-Z]{1,5}(\.[A-Z]{1,2})?|(\d{5,6})(\.(HK|SH|SZ|BJ))?)\b/g;
     if (e.target.value && allStockRegex.test(e.target.value)) {
       const res = await apiGetFundInfo(e.target.value);
       item.name = res.data.fundName;

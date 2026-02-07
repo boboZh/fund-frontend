@@ -4,16 +4,16 @@ import type { FundItem } from "@/types/fund";
 export interface Column<T> {
   name: string;
   key: keyof T | "op";
-  colClassName: string | ((val: any) => string);
+  colClassName: string | ((val: T) => string);
+  render?: React.ReactNode | ((val: T) => React.ReactNode);
 }
 
 export interface FundTableProps<T> {
   columns: Column<T>[];
   funds: T[];
-  handleDelete: (fund: T) => void;
 }
 
-const FundTable: React.FC<FundTableProps<FundItem>> = ({ columns, funds, handleDelete }) => {
+const FundTable: React.FC<FundTableProps<FundItem>> = ({ columns, funds }) => {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left">
@@ -35,30 +35,27 @@ const FundTable: React.FC<FundTableProps<FundItem>> = ({ columns, funds, handleD
           {funds.map((fund) => {
             return (
               <tr key={fund.code} className="hover:bg-gray-50/80 transition-colors">
-                {columns.map((item, index) => {
-                  if (item.key === "op")
-                    return (
-                      <td
-                        key={item.key}
-                        className="px-8 py-5 text-right cursor-pointer text-nowrap"
-                        onClick={() => handleDelete(fund)}
-                      >
-                        删除
-                      </td>
-                    );
+                {columns.map((item, colIndex) => {
+                  let content: React.ReactNode;
 
-                  const value = fund[item.key as keyof FundItem];
-                  const className =
+                  if (item.render) {
+                    content = typeof item.render === "function" ? item.render(fund) : item.render;
+                  } else {
+                    content = String(fund[item.key as keyof FundItem] ?? "");
+                  }
+
+                  const isRightAligned = colIndex > 0;
+                  const dynamicClass =
                     typeof item.colClassName === "function"
                       ? item.colClassName(fund)
-                      : item.colClassName;
+                      : item.colClassName || "";
 
                   return (
                     <td
                       key={item.key}
-                      className={`px-8 py-5 font-bold ${index > 0 ? "text-right" : ""} ${className}`}
+                      className={`px-8 py-5 font-bold ${isRightAligned ? "text-right" : ""} ${dynamicClass}`}
                     >
-                      {value}
+                      {content}
                     </td>
                   );
                 })}

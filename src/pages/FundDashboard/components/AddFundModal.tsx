@@ -3,6 +3,7 @@ import { X, Search } from "lucide-react";
 import type { AddFundItem } from "@/types/fund";
 import { apiGetFundInfo } from "@/apis/fund.api";
 import { toast } from "sonner";
+import { allStockRegex } from "@/utils/tools";
 
 interface AddFundModalProps {
   isOpen: boolean;
@@ -18,7 +19,6 @@ const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm 
 
   // 1. 手动输入：根据代码获取基金名称
   const handleSearchFund = async () => {
-    const allStockRegex = /\b([A-Z]{1,5}(\.[A-Z]{1,2})?|(\d{5,6})(\.(HK|SH|SZ|BJ))?)\b/g;
     if (manualData.code.match(allStockRegex) === null) return;
     try {
       // 假设后端有这个搜索接口

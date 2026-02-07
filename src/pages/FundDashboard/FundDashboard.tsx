@@ -6,7 +6,9 @@ import { apiGetPortfolio, apiBatchImoportFund, apiDeleteFund } from "@/apis/fund
 import FundTable, { type Column } from "./components/FundTable";
 import { toast } from "sonner";
 import type { PortfolioData, FundItem, AddFundItem } from "@/types/fund";
+import { textColor } from "@/utils/tools";
 import AiAssistant from "@/components/AiAssistant";
+import ConfigAlertModal from "./components/ConfigAlertModal";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,6 +16,8 @@ const Dashbard: React.FC = () => {
 
   const [data, setData] = useState<PortfolioData | null>(null);
   const [lastUpdated, setLastUpdated] = useState("尚未同步");
+  const [curFund, setCurFund] = useState<FundItem | null>(null);
+  const [isConfigAlertOpen, setIsConfigAlertOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -59,18 +63,12 @@ const Dashbard: React.FC = () => {
   // 类型守卫，如果data为空，则提前返回，这样下面的summary不用做空判断
   if (!data) return <div className="p-10 text-center">正在连接后端服务...</div>;
 
-  type ValType = string | number | null | undefined;
-  const isUp = (val: ValType): number => {
-    if ([null, undefined, "-", "--", 0].includes(val)) return 0;
-    const _val = typeof val === "string" ? parseFloat(val) : (val as number);
-    return _val > 0 ? 1 : -1;
+  // 打开设置提醒
+  const emitSetAlert = (fund: FundItem) => {
+    setCurFund(fund);
+    setIsConfigAlertOpen(true);
   };
-  const textColor = (val: ValType): string => {
-    const up = isUp(val);
-    if (up > 0) return "text-red-500";
-    if (up < 0) return "text-green-500";
-    return "text-gray-500";
-  };
+
   // 定义table列
   // 这里的key和FundItem的字段对应
   const columns: Column<FundItem>[] = [
@@ -87,7 +85,7 @@ const Dashbard: React.FC = () => {
     {
       name: "实时预估",
       key: "change",
-      colClassName: textColor,
+      colClassName: (fund) => textColor(fund.change),
     },
     {
       name: "持仓金额",
@@ -97,12 +95,30 @@ const Dashbard: React.FC = () => {
     {
       name: "今日收益",
       key: "dailyProfit",
-      colClassName: textColor,
+      colClassName: (fund) => textColor(fund.dailyProfit),
+    },
+    {
+      name: "止盈点",
+      key: "targetProfitRate",
+      colClassName: (fund) => textColor(fund.targetProfitRate),
+    },
+    {
+      name: "止损点",
+      key: "stopLossRate",
+      colClassName: (fund) => textColor(fund.stopLossRate),
     },
     {
       name: "操作",
       key: "op",
       colClassName: "font-medium",
+      render: (fund) => {
+        return (
+          <div className="fn-flex align-middle">
+            <button onClick={() => handleDeleteClick(fund)}>删除</button>
+            <button onClick={() => emitSetAlert(fund)}>设置提醒</button>
+          </div>
+        );
+      },
     },
   ];
   return (
@@ -172,7 +188,7 @@ const Dashbard: React.FC = () => {
           <div className="px-8 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
             <h3 className="font-bold text-gray-700">持仓明细</h3>
           </div>
-          <FundTable columns={columns} funds={data.funds} handleDelete={handleDeleteClick} />
+          <FundTable columns={columns} funds={data.funds} />
         </div>
 
         {/* Warn Tips */}
@@ -196,6 +212,13 @@ const Dashbard: React.FC = () => {
         />
 
         <AiAssistant funds={data.funds} />
+
+        <ConfigAlertModal
+          fund={curFund as FundItem}
+          isOpen={isConfigAlertOpen}
+          onClose={() => setIsConfigAlertOpen(false)}
+          onRefresh={fetchData}
+        />
       </div>
     </div>
   );
