@@ -100,12 +100,10 @@ const Dashbard: React.FC = () => {
     {
       name: "止盈点",
       key: "targetProfitRate",
-      colClassName: (fund) => textColor(fund.targetProfitRate),
     },
     {
       name: "止损点",
       key: "stopLossRate",
-      colClassName: (fund) => textColor(fund.stopLossRate),
     },
     {
       name: "操作",

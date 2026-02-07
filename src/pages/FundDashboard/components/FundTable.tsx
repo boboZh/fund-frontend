@@ -4,7 +4,7 @@ import type { FundItem } from "@/types/fund";
 export interface Column<T> {
   name: string;
   key: keyof T | "op";
-  colClassName: string | ((val: T) => string);
+  colClassName?: string | ((val: T) => string);
   render?: React.ReactNode | ((val: T) => React.ReactNode);
 }
 
