@@ -74,12 +74,12 @@ const Dashbard: React.FC = () => {
   const columns: Column<FundItem>[] = [
     {
       name: "基金信息",
-      key: "name",
+      key: "fundName",
       colClassName: "text-gray-800",
     },
     {
       name: "代码",
-      key: "code",
+      key: "fundCode",
       colClassName: "text-gray-400",
     },
     {
@@ -111,9 +111,16 @@ const Dashbard: React.FC = () => {
       colClassName: "font-medium",
       render: (fund) => {
         return (
-          <div className="fn-flex align-middle">
-            <button onClick={() => handleDeleteClick(fund)}>删除</button>
-            <button onClick={() => emitSetAlert(fund)}>设置提醒</button>
+          <div className="fn-flex align-middle gap-2 flex-nowrap flex-noshrink">
+            <button className="" onClick={() => handleDeleteClick(fund)}>
+              删除
+            </button>
+            <button
+              className="flex items-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-xl transition shadow-sm text-nowrap"
+              onClick={() => emitSetAlert(fund)}
+            >
+              设置提醒
+            </button>
           </div>
         );
       },
@@ -163,7 +170,7 @@ const Dashbard: React.FC = () => {
             <p className="text-gray-500 text-sm font-medium mb-1">总持仓金额 (元)</p>
             <h2 className="text-4xl font-black text-gray-900">
               ¥{" "}
-              {Number(data.summary.totalValue).toLocaleString(undefined, {
+              {Number(data.summary.totalAmount).toLocaleString(undefined, {
                 minimumFractionDigits: 2,
               })}
             </h2>

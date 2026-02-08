@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Bell, Info } from "lucide-react";
+import { X, Bell } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import { textColor } from "@/utils/tools";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ const AlertSettingModal: React.FC<AlertModalProps> = ({ fund, isOpen, onClose, o
     setLoading(true);
     try {
       await apiSetFundAlert({
-        fundCode: fund.code,
+        fundCode: fund.fundCode,
         targetProfitRate: profitRate || null,
         stopLossRate: lossRate || null,
         applyAll,
@@ -54,9 +54,9 @@ const AlertSettingModal: React.FC<AlertModalProps> = ({ fund, isOpen, onClose, o
         <div className="p-6 space-y-6">
           {/* 基金简报 */}
           <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
-            <div className="font-bold text-gray-900">{fund.name}</div>
+            <div className="font-bold text-gray-900">{fund.fundName}</div>
             <div className="flex justify-between mt-1 items-end">
-              <span className="text-xs text-gray-400 font-mono">{fund.code}</span>
+              <span className="text-xs text-gray-400 font-mono">{fund.fundCode}</span>
               <span className={`text-sm font-bold ${textColor(fund.change)}`}>
                 当前: {fund.change}
               </span>

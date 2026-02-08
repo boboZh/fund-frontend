@@ -1,10 +1,10 @@
 import { type StateCreator } from "zustand";
 
 export interface User {
-  user_id: number;
+  userId: number;
   nickname: string;
   phone: number;
-  role_id: number;
+  roleId: number;
   role_name: string;
   permissions: string[];
 }

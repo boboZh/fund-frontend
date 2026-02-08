@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, Search } from "lucide-react";
-import type { AddFundItem } from "@/types/fund";
+import type { FundItem } from "@/types/fund";
 import { apiGetFundInfo } from "@/apis/fund.api";
 import { toast } from "sonner";
 import { allStockRegex } from "@/utils/tools";
@@ -8,26 +8,30 @@ import { allStockRegex } from "@/utils/tools";
 interface AddFundModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (funds: AddFundItem[]) => void;
+  onConfirm: (funds: FundItem[]) => void;
 }
 
 const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm }) => {
   // 手动输入状态
-  const [manualData, setManualData] = useState<AddFundItem>({ code: "", name: "", amount: "" });
+  const [manualData, setManualData] = useState<FundItem>({
+    fundCode: "",
+    fundName: "",
+    amount: "",
+  });
 
   if (!isOpen) return null;
 
   // 1. 手动输入：根据代码获取基金名称
   const handleSearchFund = async () => {
-    if (manualData.code.match(allStockRegex) === null) return;
+    if (manualData.fundCode.match(allStockRegex) === null) return;
     try {
       // 假设后端有这个搜索接口
-      const res = await apiGetFundInfo(manualData.code);
+      const res = await apiGetFundInfo(manualData.fundCode);
       if (!res.data.fundName) {
         toast.error("未找到该基金");
-        setManualData({ ...manualData, name: "" });
+        setManualData({ ...manualData, fundName: "" });
       } else {
-        setManualData({ ...manualData, name: res.data.fundName });
+        setManualData({ ...manualData, fundName: res.data.fundName });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "未找到该基金");
@@ -35,7 +39,7 @@ const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm 
   };
 
   const handleClose = () => {
-    setManualData({ code: "", name: "", amount: "" });
+    setManualData({ fundCode: "", fundName: "", amount: "" });
     onClose();
   };
 
@@ -60,8 +64,8 @@ const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm 
                     type="text"
                     className="w-full border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                     placeholder="如 001508"
-                    value={manualData.code}
-                    onChange={(e) => setManualData({ ...manualData, code: e.target.value })}
+                    value={manualData.fundCode}
+                    onChange={(e) => setManualData({ ...manualData, fundCode: e.target.value })}
                   />
                   <button
                     onClick={handleSearchFund}
@@ -76,7 +80,7 @@ const AddFundModal: React.FC<AddFundModalProps> = ({ isOpen, onClose, onConfirm 
                 <input
                   type="text"
                   className="w-full border border-gray-300 rounded-xl px-4 py-2 bg-gray-50"
-                  value={manualData.name}
+                  value={manualData.fundName}
                   readOnly
                 />
               </div>

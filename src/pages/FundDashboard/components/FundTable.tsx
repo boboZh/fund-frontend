@@ -34,7 +34,7 @@ const FundTable: React.FC<FundTableProps<FundItem>> = ({ columns, funds }) => {
         <tbody className="divide-y divide-gray-100 text-sm">
           {funds.map((fund) => {
             return (
-              <tr key={fund.code} className="hover:bg-gray-50/80 transition-colors">
+              <tr key={fund.fundCode} className="hover:bg-gray-50/80 transition-colors">
                 {columns.map((item, colIndex) => {
                   let content: React.ReactNode;
 

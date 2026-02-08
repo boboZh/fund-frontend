@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import axios from "@/utils/request"; // 之前封装的带凭证的axios
 import { apiGetImgInfo, apiGetFundInfo } from "../../../apis/fund.api";
-import type { AddFundItem } from "@/types/fund";
+import type { FundItem } from "@/types/fund";
 import { allStockRegex } from "@/utils/tools";
+import { toast } from "sonner";
 
 interface BatchAddFundModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface BatchAddFundModalProps {
 }
 
 const BatchAddFundModal: React.FC<BatchAddFundModalProps> = ({ isOpen, onClose, onRefresh }) => {
-  const [ocrList, setOcrList] = useState<AddFundItem[]>([]); // 识别出来的结果
+  const [ocrList, setOcrList] = useState<FundItem[]>([]); // 识别出来的结果
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -28,8 +29,8 @@ const BatchAddFundModal: React.FC<BatchAddFundModalProps> = ({ isOpen, onClose, 
     try {
       const res = await apiGetImgInfo(formData);
       setOcrList(res.data); // 填入识别结果
-    } catch (err: any) {
-      alert("识别失败: " + err?.message || err);
+    } catch (err) {
+      toast.error("识别失败: " + (err instanceof Error ? err.message : JSON.stringify(err)));
     } finally {
       setLoading(false);
     }
@@ -40,10 +41,10 @@ const BatchAddFundModal: React.FC<BatchAddFundModalProps> = ({ isOpen, onClose, 
     const newList = [...ocrList];
     const item = newList[index];
     if (!item) return;
-    item.code = e.target.value;
+    item.fundCode = e.target.value;
     if (e.target.value && allStockRegex.test(e.target.value)) {
       const res = await apiGetFundInfo(e.target.value);
-      item.name = res.data.fundName;
+      item.fundName = res.data.fundName;
     }
 
     setOcrList(newList);
@@ -57,7 +58,7 @@ const BatchAddFundModal: React.FC<BatchAddFundModalProps> = ({ isOpen, onClose, 
       onRefresh(); // 刷新主表
       onClose();
     } catch (err) {
-      alert("保存失败");
+      toast.error("保存失败: " + (err instanceof Error ? err.message : JSON.stringify(err)));
     }
   };
 
@@ -81,16 +82,16 @@ const BatchAddFundModal: React.FC<BatchAddFundModalProps> = ({ isOpen, onClose, 
               <div key={index} className="flex gap-2 mb-2 items-center">
                 <input
                   className="flex-1 border p-1 rounded"
-                  value={item.name}
+                  value={item.fundName}
                   onChange={(e) => {
                     const newList = [...ocrList];
-                    newList[index].name = e.target.value;
+                    newList[index].fundName = e.target.value;
                     setOcrList(newList);
                   }}
                 />
                 <input
                   className="w-20 border p-1 rounded font-mono"
-                  value={item.code}
+                  value={item.fundCode}
                   placeholder="代码"
                   onChange={(e) => handleCodeChange(e, index)}
                 />
