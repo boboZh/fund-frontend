@@ -5,9 +5,9 @@ import BatchAddFundModal from "./components/BatchAddModal";
 import { apiGetPortfolio, apiBatchImoportFund, apiDeleteFund } from "@/apis/fund.api";
 import FundTable, { type Column } from "./components/FundTable";
 import { toast } from "sonner";
-import type { PortfolioData, FundItem, AddFundItem } from "@/types/fund";
+import type { PortfolioData, FundItem } from "@/types/fund";
 import { textColor } from "@/utils/tools";
-import AiAssistant from "@/components/AiAssistant";
+import AiAssistant from "@/pages/AiAssistant/AiAssistant";
 import ConfigAlertModal from "./components/ConfigAlertModal";
 
 const Dashbard: React.FC = () => {
@@ -36,7 +36,7 @@ const Dashbard: React.FC = () => {
     return () => clearInterval(timer);
   }, [fetchData]);
 
-  const handleAddConfirm = async (newFunds: AddFundItem[]) => {
+  const handleAddConfirm = async (newFunds: FundItem[]) => {
     try {
       // 这里的 API 需要你在后端实现：接收数组并写入 portfolio.json
       await apiBatchImoportFund({

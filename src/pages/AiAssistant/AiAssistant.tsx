@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, X, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { Send, Bot, X } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import useStore from "@/store";
 import { toast } from "sonner";
+import type { AiChatModel, MsgStatus } from "@/types/ai";
+import { streamParser } from "@/utils/streamParser";
+import AiResponse from "./components/AiResponse";
+import { myFetch } from "@/utils/myFetch";
 
 interface AiAssistantProps {
   funds: FundItem[];
@@ -13,8 +16,8 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
   const store = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string }[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
+  const [messages, setMessages] = useState<AiChatModel[]>([]);
+  const [lastMsgStatus, setLastMsgStatus] = useState<MsgStatus>({});
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -31,10 +34,15 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
     const userMsg = input;
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setMessages((prev) => [...prev, { role: "ai", content: "" }]);
-    setIsTyping(true);
+    setLastMsgStatus({
+      ...lastMsgStatus,
+      isTyping: true,
+    });
+
+    let buffer = "";
 
     try {
-      const response = await fetch("/api/ai/chat", {
+      const response = await myFetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -48,27 +56,44 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value);
-
+      const updateLastMsgContent = (content) => {
         setMessages((prev) => {
           const lastMsg = prev[prev.length - 1];
-          const updated = [
+          if (!lastMsg) return prev;
+          const updated: AiChatModel[] = [
             ...prev.slice(0, -1),
             {
               ...lastMsg,
-              content: lastMsg.content + chunk,
-            },
+              content: lastMsg.content + content,
+            } as AiChatModel,
           ];
           return updated;
         });
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        console.log("chunk: ", chunk);
+
+        buffer += chunk; // 粘合剂缓冲区
+
+        buffer = streamParser(buffer, updateLastMsgContent, setLastMsgStatus);
+      }
+      if (buffer) {
+        updateLastMsgContent(buffer);
+        buffer = "";
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
+      console.log("aichat err: ", err);
     } finally {
-      setIsTyping(false);
+      setLastMsgStatus({
+        ...lastMsgStatus,
+        isTyping: false,
+      });
     }
   };
 
@@ -109,13 +134,17 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                         : "bg-white text-gray-800 shadow-sm border"
                     }`}
                   >
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    {msg.role === "user" ? (
+                      msg.content
+                    ) : (
+                      <AiResponse
+                        model={msg}
+                        msgStatus={i === messages.length - 1 ? lastMsgStatus : {}}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
-              {isTyping && messages[messages.length - 1].content === "" && (
-                <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
-              )}
             </div>
           </div>
           {/* 输入区域 */}

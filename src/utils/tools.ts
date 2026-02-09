@@ -13,3 +13,22 @@ export const textColor = (val: ValType): string => {
   if (up < 0) return "text-green-500";
   return "text-gray-500";
 };
+
+// 解析ai流式响应
+export const parseReponseChunk = (chunk: string) => {
+  const regex = /.*\[status\]([\s\S]*?)\[status\]\s*$/;
+  const match = regex.exec(chunk);
+  if (match) {
+    const contents = match[1].trim().split("-");
+    return {
+      status: contents[0],
+      statusText: contents[1],
+      content: "",
+    };
+  }
+  return {
+    content: chunk,
+    status: undefined,
+    statusText: "",
+  };
+};

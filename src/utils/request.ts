@@ -1,9 +1,5 @@
 import axios from "axios";
-import type {
-  AxiosError,
-  AxiosResponse,
-  InternalAxiosRequestConfig,
-} from "axios";
+import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import useStore from "@/store";
 
 export interface ApiResponse<T = any> {
@@ -11,6 +7,11 @@ export interface ApiResponse<T = any> {
   message: string;
   data: T;
 }
+
+export const handleExpired = () => {
+  useStore.getState().setLogout();
+  window.location.href = "/login";
+};
 
 const request = axios.create({
   timeout: 30000,
@@ -53,8 +54,7 @@ request.interceptors.response.use(
       error.response?.status === 401 ||
       (error.message && error.message.indexOf("code 401") > -1)
     ) {
-      useStore.getState().setLogout();
-      window.location.href = "/login";
+      handleExpired();
     }
     return Promise.reject(error);
   },
