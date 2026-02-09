@@ -1,13 +1,15 @@
-export type AiStatus = "idle" | "thinking" | "searching" | "error";
+export type AiTaskType = "idle" | "thinking" | "searching";
+export type AiTaskStatus = "loading" | "success" | "error";
 
 export interface MessageStep {
-  type: AiStatus;
-  content: string;
+  taskType?: AiTaskType;
+  text: string;
+  id: string;
+  status: AiTaskStatus;
 }
 
 export interface AiChatModel {
   content: string;
   role: "ai" | "user";
-  steps: MessageStep[];
-  currentStatus: AiStatus;
+  steps?: MessageStep[];
 }

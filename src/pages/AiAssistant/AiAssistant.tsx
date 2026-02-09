@@ -3,7 +3,7 @@ import { Send, Bot, X } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import useStore from "@/store";
 import { toast } from "sonner";
-import type { AiChatModel, MsgStatus } from "@/types/ai";
+import type { AiChatModel, AiTaskStatus } from "@/types/ai";
 import { streamParser } from "@/utils/streamParser";
 import AiResponse from "./components/AiResponse";
 import { myFetch } from "@/utils/myFetch";
@@ -17,7 +17,6 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<AiChatModel[]>([]);
-  const [lastMsgStatus, setLastMsgStatus] = useState<MsgStatus>({});
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -32,12 +31,34 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
     if (!input.trim()) return;
 
     const userMsg = input;
+    setInput("");
+    //
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setMessages((prev) => [...prev, { role: "ai", content: "" }]);
-    setLastMsgStatus({
-      ...lastMsgStatus,
-      isTyping: true,
-    });
+
+    // 更新消息的步骤条及状态
+    const updateSteps = (taskId: string, status: AiTaskStatus, text: string) => {
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg.role !== "ai") return prev;
+
+        const newSteps = [...(lastMsg.steps || [])];
+
+        const curStep = newSteps.find((item) => item.id === taskId);
+        if (!curStep) {
+          newSteps.push({
+            id: taskId,
+            status,
+            text,
+          });
+        } else {
+          curStep.text = text;
+          curStep.status = status;
+        }
+
+        return [...prev.slice(0, -1), { ...lastMsg, steps: newSteps }];
+      });
+    };
 
     let buffer = "";
 
@@ -80,7 +101,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
 
         buffer += chunk; // 粘合剂缓冲区
 
-        buffer = streamParser(buffer, updateLastMsgContent, setLastMsgStatus);
+        buffer = streamParser(buffer, updateLastMsgContent, updateSteps);
       }
       if (buffer) {
         updateLastMsgContent(buffer);
@@ -89,10 +110,36 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
       console.log("aichat err: ", err);
+      setMessages((prev) => {
+        if (!prev || prev.length === 0) return [];
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg.role !== "ai") return prev;
+        const newSteps = lastMsg.steps || [];
+        newSteps.length && (newSteps[newSteps.length - 1].status = "error");
+        return [
+          ...prev.slice(0, -1),
+          {
+            ...lastMsg,
+            steps: newSteps,
+          },
+        ];
+      });
     } finally {
-      setLastMsgStatus({
-        ...lastMsgStatus,
-        isTyping: false,
+      setMessages((prev) => {
+        if (!prev || prev.length === 0) return [];
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg.role !== "ai") return prev;
+        const newSteps = lastMsg.steps || [];
+        newSteps.length && (newSteps[newSteps.length - 1].status = "success");
+        return [
+          ...prev.slice(0, -1),
+          {
+            ...lastMsg,
+            steps: newSteps,
+            currentTaskText: "",
+            currentTaskType: "",
+          },
+        ];
       });
     }
   };
@@ -107,7 +154,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
           <Bot className="w-6 h-6" />
         </button>
       ) : (
-        <div className="flex flex-col h-[500px] bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+        <div className="flex flex-col h-[90vh] bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
           {/* Header */}
           <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
             <div className="flex items-center gap-2">
@@ -134,14 +181,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                         : "bg-white text-gray-800 shadow-sm border"
                     }`}
                   >
-                    {msg.role === "user" ? (
-                      msg.content
-                    ) : (
-                      <AiResponse
-                        model={msg}
-                        msgStatus={i === messages.length - 1 ? lastMsgStatus : {}}
-                      />
-                    )}
+                    {msg.role === "user" ? msg.content : <AiResponse model={msg} />}
                   </div>
                 </div>
               ))}

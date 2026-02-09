@@ -1,8 +1,8 @@
-import type { AiStatus, MsgStatus } from "@/types/ai";
+import type { AiTaskType, AiTaskStatus } from "@/types/ai";
 export const streamParser = (
   _buffer: string,
   updateLastMsgContent: (text: string) => void,
-  setLastMsgStatus: (obj: MsgStatus) => void,
+  setStepStatus: (taskId: string, type: AiTaskStatus, text: string) => void,
 ) => {
   let buffer = _buffer;
   while (true) {
@@ -19,13 +19,9 @@ export const streamParser = (
       if (before) updateLastMsgContent(before);
 
       const signal = buffer.substring(startIdx + startTagLen, endIdx);
-      const splitIdx = signal.indexOf(":");
-      const status = signal.substring(0, splitIdx);
-      const statusText = signal.substring(splitIdx + 1);
-      setLastMsgStatus({
-        status: status as AiStatus,
-        statusText,
-      });
+      const [taskId, status, ...text] = signal.split(":");
+
+      setStepStatus(taskId, status as AiTaskStatus, text.join(":"));
       buffer = buffer.substring(endIdx + endTagLen);
     } else {
       if (startIdx === -1) {
