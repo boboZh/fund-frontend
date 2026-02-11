@@ -19,6 +19,7 @@ const Dashbard: React.FC = () => {
   const [curFund, setCurFund] = useState<FundItem | null>(null);
   const [isConfigAlertOpen, setIsConfigAlertOpen] = useState(false);
 
+  // 使用 useCallback 包裹，避免每次渲染都生成新函数
   const fetchData = useCallback(async () => {
     try {
       const response = await apiGetPortfolio();
@@ -27,9 +28,10 @@ const Dashbard: React.FC = () => {
     } catch (error) {
       toast.error("获取数据失败:" + (error instanceof Error ? error.message : String(error)));
     }
-  }, []);
+  }, []); // 依赖项为空，保证引用不变
 
   // 自动刷新逻辑
+  // React 18 Strict Mode（严格模式）：在开发环境下，React 会刻意双重挂载（Mount）组件来帮助你检查副作用清理是否正确。
   useEffect(() => {
     fetchData();
     const timer = setInterval(fetchData, 3600000);

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, X } from "lucide-react";
+import { Send, Bot, Sparkles } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import useStore from "@/store";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import type { AiChatModel, AiTaskStatus } from "@/types/ai";
 import { streamParser } from "@/utils/streamParser";
 import AiResponse from "./components/AiResponse";
 import { myFetch } from "@/utils/myFetch";
+import ChatSidebar from "./components/ChatSideBar";
 
 interface AiAssistantProps {
   funds: FundItem[];
@@ -14,16 +15,17 @@ interface AiAssistantProps {
 
 const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
   const store = useStore();
-  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<AiChatModel[]>([]);
-
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 自动滚动到底部
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [messages]);
 
@@ -145,66 +147,122 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {!isOpen ? (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition active:scale-95"
-        >
-          <Bot className="w-6 h-6" />
-        </button>
-      ) : (
-        <div className="flex flex-col h-[90vh] bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
-          {/* Header */}
-          <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 animate-pulse" />
-              <span className="font-bold tracking-wide">AI 策略助手</span>
+    <div className="h-screen flex bg-white overflow-hidden text-gray-900">
+      {/* 侧边栏 */}
+      <ChatSidebar />
+
+      {/* 主界面区域 */}
+      <div className="flex-1 flex flex-col relative bg-white">
+        {/* 1. 顶部 Header 优化 - 改为白色透明感 */}
+        <header className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-indigo-200 shadow-lg">
+              <Bot className="w-5 h-5 text-white" />
             </div>
-            <X
-              className="cursor-pointer hover:rotate-90 transition"
-              onClick={() => setIsOpen(false)}
-            />
+            <div>
+              <h1 className="text-sm font-bold text-gray-800">AI 策略助手</h1>
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+                  Online Mode
+                </span>
+              </div>
+            </div>
           </div>
-          <div ref={scrollRef} className="flex-1 p-6 overflow-y-auto bg-slate-50">
-            {/* 消息区域 */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((msg, i) => (
+          <button className="text-gray-400 hover:text-gray-600 transition">
+            <Sparkles size={18} />
+          </button>
+        </header>
+
+        {/* 2. 消息展示区 - 背景改为极简灰色 */}
+        <main ref={scrollRef} className="flex-1 overflow-y-auto bg-[#fafafa] scroll-smooth">
+          <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+            {messages.length === 0 && (
+              <div className="h-[60vh] flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mb-4">
+                  <Bot size={32} className="text-indigo-600" />
+                </div>
+                <h2 className="text-xl font-semibold text-gray-800">
+                  下午好，{store.user?.nickname || "朋友"}
+                </h2>
+                <p className="text-gray-400 mt-2 text-sm max-w-xs">
+                  我可以帮你分析基金趋势、生成投资策略或解答金融疑问。
+                </p>
+              </div>
+            )}
+
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+              >
                 <div
-                  key={i}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : ""}`}
                 >
+                  {/* 角色头像 */}
                   <div
-                    className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                    className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
                       msg.role === "user"
-                        ? "bg-indigo-600 text-white"
-                        : "bg-white text-gray-800 shadow-sm border"
+                        ? "bg-indigo-100 text-indigo-600"
+                        : "bg-white border border-gray-200 text-gray-600 shadow-sm"
                     }`}
                   >
-                    {msg.role === "user" ? msg.content : <AiResponse model={msg} />}
+                    {msg.role === "user" ? "U" : <Bot size={16} />}
+                  </div>
+
+                  {/* 气泡样式优化 */}
+                  <div
+                    className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 rounded-tr-none"
+                        : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
+                    }`}
+                  >
+                    {msg.role === "user" ? (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    ) : (
+                      <AiResponse model={msg} />
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-          {/* 输入区域 */}
-          <div className="p-4 bg-white border-t flex gap-2">
-            <input
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+        </main>
+
+        {/* 3. 输入区域 - 模仿 ChatGPT 悬浮居中感 */}
+        <div className="bg-white p-4 md:p-6">
+          <div className="max-w-4xl mx-auto relative group">
+            <textarea
+              rows={1}
+              className="w-full border border-gray-200 rounded-2xl px-5 py-4 pr-14 text-sm shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none bg-gray-50/50"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="问问 AI 助手..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="发送消息或输入 '/' 获取策略模板..."
             />
             <button
               onClick={handleSend}
-              className="bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition"
+              disabled={!input.trim()}
+              className={`absolute right-3 bottom-3 p-2 rounded-xl transition-all ${
+                input.trim()
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
             >
               <Send className="w-4 h-4" />
             </button>
           </div>
+          <p className="text-[10px] text-gray-400 text-center mt-3 tracking-tight">
+            AI 可能会产生错误信息，请核实重要财务决策。
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 };

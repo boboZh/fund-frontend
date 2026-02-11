@@ -1,7 +1,7 @@
 import FundDashboard from "@/pages/FundDashboard/FundDashboard";
 import Login from "@/pages/Login/Login";
 import Home from "@/pages/Home/Home";
-// import Profile from '@/pages/Profile'; // 假设的新页面
+import AiAssistant from "@/pages/AiAssistant/AiAssistant"; // 假设的新页面
 
 export const routes = [
   {
@@ -16,7 +16,7 @@ export const routes = [
   },
   {
     path: "/",
-    element: <Home />,
+    element: <AiAssistant />,
     auth: true, // 需要登录
   },
 ];
