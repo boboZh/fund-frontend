@@ -16,5 +16,5 @@ export interface AiChatModel {
 
 export interface Session {
   title: string;
-  id: string;
+  sessionId: string;
 }

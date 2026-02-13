@@ -1,11 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { Session } from "@/types/ai";
+import { apiGetSessionList } from "@/apis/ai.api";
 import { PanelLeftClose, PanelLeftOpen, Plus, MessageSquare, Trash2 } from "lucide-react";
 import useStore from "@/store";
 
 const ChatSidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
   const store = useStore();
+  const [sessions, setSessions] = useState<Session[]>([]);
+
+  const fetchSessions = async () => {
+    const _sessions = await apiGetSessionList();
+    setSessions(_sessions);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSessions();
+    }
+  }, [isOpen]);
 
   // 模拟数据用于演示，实际从 store 或接口获取
   const sessions = store.sessions || [];
@@ -44,7 +57,7 @@ const ChatSidebar: React.FC = () => {
 
       {/* 会话列表 */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-        {sessions.map((s) => (
+        {(store?.sessions || []).map((s) => (
           <div
             key={s.id}
             onClick={() => store.setCurSession(s)}

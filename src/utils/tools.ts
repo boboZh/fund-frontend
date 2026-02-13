@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 // 股票代码正则，支持美股、港股、A股等格式
 export const allStockRegex = /\b([A-Z]{1,5}(\.[A-Z]{1,2})?|(\d{5,6})(\.(HK|SH|SZ|BJ))?)\b/g;
 
@@ -32,3 +33,5 @@ export const parseReponseChunk = (chunk: string) => {
     statusText: "",
   };
 };
+
+export const generateSessionId = () => nanoid(10);

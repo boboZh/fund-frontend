@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Bot, Sparkles } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import useStore from "@/store";
@@ -8,16 +8,36 @@ import { streamParser } from "@/utils/streamParser";
 import AiResponse from "./components/AiResponse";
 import { myFetch } from "@/utils/myFetch";
 import ChatSidebar from "./components/ChatSideBar";
+import { useParams } from "react-router-dom";
 
 interface AiAssistantProps {
   funds: FundItem[];
 }
 
 const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
+  const { sessionId } = useParams();
   const store = useStore();
+  const setCurSession = useStore((state) => state.setCurSession);
+  const curSession = useStore((state) => state.curSession);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<AiChatModel[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const loadChatHistory = useCallback(
+    (sid: string) => {
+      setCurSession({
+        sessionId: sid,
+        title: "新对话",
+      });
+    },
+    [setCurSession],
+  );
+
+  useEffect(() => {
+    if (sessionId) {
+      loadChatHistory(sessionId);
+    }
+  }, [sessionId, loadChatHistory]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -168,6 +188,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                 </span>
               </div>
             </div>
+            <div>{curSession?.title || ""}</div>
           </div>
           <button className="text-gray-400 hover:text-gray-600 transition">
             <Sparkles size={18} />

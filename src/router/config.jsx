@@ -16,7 +16,12 @@ export const routes = [
   },
   {
     path: "/",
-    element: <AiAssistant />,
+    element: <Home />,
     auth: true, // 需要登录
   },
+  {
+    path: '/chat/:sessionId',
+    element: <AiAssistant />,
+    auth: true
+  }
 ];

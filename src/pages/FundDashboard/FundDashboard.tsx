@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, TrendingUp, Wallet, AlertCircle, Plus } from "lucide-react";
+import { RefreshCw, TrendingUp, Wallet, AlertCircle, Plus, Bot } from "lucide-react";
 import AddFundModal from "./components/AddFundModal";
 import BatchAddFundModal from "./components/BatchAddModal";
 import { apiGetPortfolio, apiBatchImoportFund, apiDeleteFund } from "@/apis/fund.api";
 import FundTable, { type Column } from "./components/FundTable";
 import { toast } from "sonner";
 import type { PortfolioData, FundItem } from "@/types/fund";
-import { textColor } from "@/utils/tools";
-import AiAssistant from "@/pages/AiAssistant/AiAssistant";
+import { generateSessionId, textColor } from "@/utils/tools";
 import ConfigAlertModal from "./components/ConfigAlertModal";
+import { Link, useNavigate } from "react-router-dom";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,6 +18,8 @@ const Dashbard: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState("尚未同步");
   const [curFund, setCurFund] = useState<FundItem | null>(null);
   const [isConfigAlertOpen, setIsConfigAlertOpen] = useState(false);
+
+  const navigate = useNavigate();
 
   // 使用 useCallback 包裹，避免每次渲染都生成新函数
   const fetchData = useCallback(async () => {
@@ -54,12 +56,17 @@ const Dashbard: React.FC = () => {
   const handleDeleteClick = async (fund: FundItem) => {
     try {
       await apiDeleteFund({
-        fundCode: fund.code,
+        fundCode: fund.fundCode,
       });
       fetchData();
     } catch (error) {
       console.error("删除失败：", error);
     }
+  };
+
+  const startNewChat = () => {
+    const sessionId = generateSessionId();
+    navigate(`/chat/${sessionId}`);
   };
 
   // 类型守卫，如果data为空，则提前返回，这样下面的summary不用做空判断
@@ -218,8 +225,14 @@ const Dashbard: React.FC = () => {
           onRefresh={fetchData}
         />
 
-        <AiAssistant funds={data.funds} />
-
+        {/* <Link to="/chat"> */}
+        <button
+          className="fixed right-6 bottom-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition active:scale-95"
+          onClick={startNewChat}
+        >
+          <Bot className="w-6 h-6" />
+        </button>
+        {/* </Link> */}
         <ConfigAlertModal
           fund={curFund as FundItem}
           isOpen={isConfigAlertOpen}
