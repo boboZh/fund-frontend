@@ -6,7 +6,7 @@ import { apiGetPortfolio, apiBatchImoportFund, apiDeleteFund } from "@/apis/fund
 import FundTable, { type Column } from "./components/FundTable";
 import { toast } from "sonner";
 import type { PortfolioData, FundItem } from "@/types/fund";
-import { generateSessionId, textColor } from "@/utils/tools";
+import { textColor } from "@/utils/tools";
 import ConfigAlertModal from "./components/ConfigAlertModal";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -65,8 +65,7 @@ const Dashbard: React.FC = () => {
   };
 
   const startNewChat = () => {
-    const sessionId = generateSessionId();
-    navigate(`/chat/${sessionId}`);
+    navigate(`/chat/new`);
   };
 
   // 类型守卫，如果data为空，则提前返回，这样下面的summary不用做空判断

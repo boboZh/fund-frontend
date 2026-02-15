@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Bot, Sparkles } from "lucide-react";
+import { Send, Bot, Sparkles, Copy } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import useStore from "@/store";
 import { toast } from "sonner";
@@ -9,35 +9,66 @@ import AiResponse from "./components/AiResponse";
 import { myFetch } from "@/utils/myFetch";
 import ChatSidebar from "./components/ChatSideBar";
 import { useParams } from "react-router-dom";
+import { apiGetMsgList } from "@/apis/ai.api";
+import { useNavigate } from "react-router-dom";
+import type { Session } from "@/types/ai";
 
 interface AiAssistantProps {
   funds: FundItem[];
 }
 
 const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
-  const { sessionId } = useParams();
-  const store = useStore();
-  const setCurSession = useStore((state) => state.setCurSession);
-  const curSession = useStore((state) => state.curSession);
+  const { sessionId: pathSessionId } = useParams();
+
+  const navigate = useNavigate();
+
+  const startNewSession = useStore((state) => state.startNewSession);
+  const user = useStore((state) => state.user);
+  const allSessions = useStore.getState().sessions;
+
   const [input, setInput] = useState("");
+  const [curSession, setCurSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<AiChatModel[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const loadChatHistory = useCallback(
-    (sid: string) => {
-      setCurSession({
-        sessionId: sid,
-        title: "新对话",
-      });
-    },
-    [setCurSession],
-  );
+  const loadChatHistory = useCallback(async (sid: string) => {
+    try {
+      const result = await apiGetMsgList(sid);
+      console.log("result: ", result);
+      setMessages(result.data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "获取对话历史失败");
+    }
+  }, []);
 
   useEffect(() => {
-    if (sessionId) {
-      loadChatHistory(sessionId);
+    // 路径上创建新对话的指令
+    if (pathSessionId === "new") {
+      const newId = startNewSession();
+      navigate(`/chat/${newId}`, { replace: true });
+      setMessages([]);
+      setCurSession({ sessionId: newId, title: "新对话" });
+      return;
     }
-  }, [sessionId, loadChatHistory]);
+    // 处理正常切换或者手动修改URL（url驱动store）
+    if (pathSessionId) {
+      // 检查这个 ID 是否在现有的会话列表里 (防止用户乱敲 URL)
+
+      const targetSession = allSessions.find((s) => s.sessionId === pathSessionId);
+      console.log("targetSession; ", targetSession);
+      // 会话列表为空，但是路径有sessionId，说明sessionId是无效的
+      if (allSessions.length > 0) {
+        navigate("/chat", {
+          replace: true,
+        });
+        setMessages([]);
+        setCurSession(null);
+      } else if (targetSession) {
+        setCurSession(targetSession);
+        loadChatHistory(pathSessionId);
+      }
+    }
+  }, [pathSessionId, startNewSession, navigate, loadChatHistory, allSessions, setCurSession]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -51,6 +82,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
 
   const handleSend = async () => {
     if (!input.trim()) return;
+    const _sessionId = pathSessionId ? pathSessionId : startNewSession();
 
     const userMsg = input;
     setInput("");
@@ -90,8 +122,9 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMsg,
+          sessionId: _sessionId,
           funds,
-          userNickname: store.user?.nickname || "用户",
+          userNickname: user?.nickname || "用户",
         }),
         credentials: "include",
       });
@@ -131,7 +164,9 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
+      console.log("toast: ", toast);
       console.log("aichat err: ", err);
+
       setMessages((prev) => {
         if (!prev || prev.length === 0) return [];
         const lastMsg = prev[prev.length - 1];
@@ -164,6 +199,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
         ];
       });
     }
+  };
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("已复制到剪贴板");
   };
 
   return (
@@ -204,7 +244,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                   <Bot size={32} className="text-indigo-600" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-800">
-                  下午好，{store.user?.nickname || "朋友"}
+                  下午好，{user?.nickname || "朋友"}
                 </h2>
                 <p className="text-gray-400 mt-2 text-sm max-w-xs">
                   我可以帮你分析基金趋势、生成投资策略或解答金融疑问。
@@ -218,7 +258,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                 className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}
               >
                 <div
-                  className={`flex gap-3 max-w-[85%] ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                  className={`flex gap-3 max-w-[85%] group ${msg.role === "user" ? "flex-row-reverse" : ""}`}
                 >
                   {/* 角色头像 */}
                   <div
@@ -231,7 +271,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                     {msg.role === "user" ? "U" : <Bot size={16} />}
                   </div>
 
-                  {/* 气泡样式优化 */}
+                  {/* 消息气泡 */}
                   <div
                     className={`p-4 rounded-2xl text-sm leading-relaxed ${
                       msg.role === "user"
@@ -245,6 +285,16 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
                       <AiResponse model={msg} />
                     )}
                   </div>
+
+                  {msg.role === "user" && (
+                    <button
+                      onClick={() => handleCopy(msg.content)}
+                      title="复制内容"
+                      className="mt-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity p1.5   text-gray-400 hover:text-indigo-600"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

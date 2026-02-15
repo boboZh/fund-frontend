@@ -1,27 +1,25 @@
 import React, { useState, useEffect } from "react";
-import type { Session } from "@/types/ai";
-import { apiGetSessionList } from "@/apis/ai.api";
 import { PanelLeftClose, PanelLeftOpen, Plus, MessageSquare, Trash2 } from "lucide-react";
 import useStore from "@/store";
+import { toast } from "sonner";
+import { useNavigate, useParams } from "react-router-dom";
 
 const ChatSidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(true);
-  const store = useStore();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const navigate = useNavigate();
+  const { sessionId: curSessionId } = useParams();
 
-  const fetchSessions = async () => {
-    const _sessions = await apiGetSessionList();
-    setSessions(_sessions);
-  };
+  // const store = useStore(); // 不要全量订阅，容易污染组件环境
+
+  const sessions = useStore((state) => state.sessions || []);
+  const deleteSession = useStore((state) => state.deleteSession);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchSessions();
+    // 页面初始化加载的时候，获取sessionList
+    if (useStore.getState().sessions.length === 0) {
+      useStore.getState().getSessionList();
     }
-  }, [isOpen]);
-
-  // 模拟数据用于演示，实际从 store 或接口获取
-  const sessions = store.sessions || [];
+  }, []);
 
   return (
     <div
@@ -44,9 +42,7 @@ const ChatSidebar: React.FC = () => {
       {isOpen && (
         <div className="px-4 mb-2">
           <button
-            onClick={() => {
-              /* create logic */
-            }}
+            onClick={() => navigate("/chat/new")}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 shadow-sm hover:shadow-md hover:bg-gray-50 transition-all"
           >
             <Plus size={16} />
@@ -56,20 +52,21 @@ const ChatSidebar: React.FC = () => {
       )}
 
       {/* 会话列表 */}
+
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-        {(store?.sessions || []).map((s) => (
+        {sessions.map((s) => (
           <div
-            key={s.id}
-            onClick={() => store.setCurSession(s)}
+            key={s.sessionId}
+            onClick={() => navigate(`/chat/${s.sessionId}`)}
             className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm transition-all ${
-              store.curSession?.id === s.id
+              curSessionId === s.sessionId
                 ? "bg-white shadow-sm ring-1 ring-gray-200 text-blue-600"
                 : "text-gray-600 hover:bg-gray-200/50"
             }`}
           >
             <MessageSquare
               size={16}
-              className={store.curSession?.id === s.id ? "text-blue-500" : "text-gray-400"}
+              className={curSessionId === s.sessionId ? "text-blue-500" : "text-gray-400"}
             />
             <span className="flex-1 truncate">{s.title || "新对话"}</span>
 
@@ -77,6 +74,10 @@ const ChatSidebar: React.FC = () => {
             {isOpen && (
               <Trash2
                 size={14}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteSession(s.sessionId);
+                }}
                 className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
               />
             )}

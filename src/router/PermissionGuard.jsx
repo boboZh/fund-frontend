@@ -5,7 +5,6 @@ const PermissionGuard = ({ children, auth }) => {
   const isLoggedIn = useStore(state => state.isLoggedIn) 
   const location = useLocation() 
 
-  console.log('isLoggedIn: ', isLoggedIn, auth)
   if (auth && !isLoggedIn) {
     return <Navigate to="/login" state={{from: location}} replace />
   }
