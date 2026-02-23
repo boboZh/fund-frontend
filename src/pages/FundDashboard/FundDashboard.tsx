@@ -64,8 +64,8 @@ const Dashbard: React.FC = () => {
     }
   };
 
-  const startNewChat = () => {
-    navigate(`/chat/new`);
+  const goAiAssistant = () => {
+    navigate(`/chat`);
   };
 
   // 类型守卫，如果data为空，则提前返回，这样下面的summary不用做空判断
@@ -227,7 +227,7 @@ const Dashbard: React.FC = () => {
         {/* <Link to="/chat"> */}
         <button
           className="fixed right-6 bottom-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition active:scale-95"
-          onClick={startNewChat}
+          onClick={goAiAssistant}
         >
           <Bot className="w-6 h-6" />
         </button>

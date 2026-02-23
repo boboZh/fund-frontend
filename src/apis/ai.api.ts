@@ -1,5 +1,6 @@
 import request, { type ApiResponse } from "../utils/request";
 import type { Session, AiChatModel } from "@/types/ai";
+import type { PageParams } from "@/types";
 // 获取会话列表
 export const apiGetSessionList = (): Promise<ApiResponse<Session[]>> =>
   request({
@@ -7,13 +8,13 @@ export const apiGetSessionList = (): Promise<ApiResponse<Session[]>> =>
     url: "/ai/session/list",
   });
 // 获取对话消息记录
-export const apiGetMsgList = (sessionId: string): Promise<ApiResponse<AiChatModel[]>> =>
+export const apiGetMsgList = (
+  data: { sessionId: string } & PageParams,
+): Promise<ApiResponse<{ list: AiChatModel[]; hasMore: boolean }>> =>
   request({
-    method: "get",
+    method: "post",
     url: "/ai/message/list",
-    params: {
-      sessionId,
-    },
+    data,
   });
 // 删除会话
 export const apiDeleteSession = (sessionId: string): Promise<void> =>

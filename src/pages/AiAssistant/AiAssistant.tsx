@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Bot, Sparkles, Copy } from "lucide-react";
+import { Send, Bot, Sparkles, Copy, Loader2 } from "lucide-react";
 import type { FundItem } from "@/types/fund";
 import useStore from "@/store";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { useParams } from "react-router-dom";
 import { apiGetMsgList } from "@/apis/ai.api";
 import { useNavigate } from "react-router-dom";
 import type { Session } from "@/types/ai";
+import { generateSessionId } from "@/utils/tools";
 
 interface AiAssistantProps {
   funds: FundItem[];
@@ -22,53 +23,93 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
 
   const navigate = useNavigate();
 
-  const startNewSession = useStore((state) => state.startNewSession);
-  const user = useStore((state) => state.user);
-  const allSessions = useStore.getState().sessions;
+  const lastLoadedIdRef = useRef<string | null>(null);
+
+  const {
+    user,
+    sessions: allSessions,
+    isInitialLoaded,
+    getSessionList,
+    startNewSession,
+  } = useStore();
 
   const [input, setInput] = useState("");
-  const [curSession, setCurSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<AiChatModel[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const loadChatHistory = useCallback(async (sid: string) => {
+  // 消息记录分页
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+  // --- 衍生状态：由 URL 和 Store 共同决定 ---
+  const curSession = allSessions.find((s) => s.sessionId === pathSessionId) || null;
+
+  //
+  useEffect(() => {
+    // 页面初始化加载的时候，获取sessionList
+    if (!isInitialLoaded) {
+      getSessionList();
+    }
+  }, [isInitialLoaded, getSessionList]);
+
+  const loadChatHistory = useCallback(async (sid: string, targetPage: number) => {
+    if (targetPage === 1) setIsFetchingMore(false); // 重置
     try {
-      const result = await apiGetMsgList(sid);
+      const result = await apiGetMsgList({
+        sessionId: sid,
+        page: targetPage,
+        pageSize: 20,
+      });
       console.log("result: ", result);
-      setMessages(result.data);
+      const { list: newList, hasMore: more } = result.data;
+      setMessages((prev) => {
+        return targetPage === 1 ? newList : [...newList, ...prev];
+      });
+      setHasMore(more);
+
+      // 处理滚动位置维持
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "获取对话历史失败");
     }
   }, []);
 
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollTop === 0 && hasMore && !isFetchingMore) {
+      setIsFetchingMore(true);
+
+      const oldScrollHeight = target.scrollHeight;
+
+      const nextPage = page + 1;
+      await loadChatHistory(pathSessionId, nextPage);
+      setPage(nextPage);
+      setIsFetchingMore(false);
+
+      setTimeout(() => {
+        const newScrollHeight = target.scrollHeight;
+        target.scrollTop = newScrollHeight - oldScrollHeight;
+      }, 0);
+    }
+  };
+
   useEffect(() => {
-    // 路径上创建新对话的指令
-    if (pathSessionId === "new") {
-      const newId = startNewSession();
+    if (!isInitialLoaded) return;
+    if (!pathSessionId) {
+      const newId = generateSessionId();
       navigate(`/chat/${newId}`, { replace: true });
-      setMessages([]);
-      setCurSession({ sessionId: newId, title: "新对话" });
       return;
     }
-    // 处理正常切换或者手动修改URL（url驱动store）
-    if (pathSessionId) {
-      // 检查这个 ID 是否在现有的会话列表里 (防止用户乱敲 URL)
-
-      const targetSession = allSessions.find((s) => s.sessionId === pathSessionId);
-      console.log("targetSession; ", targetSession);
-      // 会话列表为空，但是路径有sessionId，说明sessionId是无效的
-      if (allSessions.length > 0) {
-        navigate("/chat", {
-          replace: true,
-        });
-        setMessages([]);
-        setCurSession(null);
-      } else if (targetSession) {
-        setCurSession(targetSession);
-        loadChatHistory(pathSessionId);
-      }
+    const targetSession = allSessions.find((s) => s.sessionId === pathSessionId);
+    if (!targetSession) {
+      setMessages([]);
+      lastLoadedIdRef.current = pathSessionId;
+    } else {
+      if (targetSession.sessionId === lastLoadedIdRef.current) return;
+      loadChatHistory(pathSessionId, 1);
+      lastLoadedIdRef.current = pathSessionId;
     }
-  }, [pathSessionId, startNewSession, navigate, loadChatHistory, allSessions, setCurSession]);
+  }, [pathSessionId, isInitialLoaded, navigate, loadChatHistory, allSessions]);
 
   // 自动滚动到底部
   useEffect(() => {
@@ -82,7 +123,10 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
 
   const handleSend = async () => {
     if (!input.trim()) return;
-    const _sessionId = pathSessionId ? pathSessionId : startNewSession();
+
+    const _sessionId = pathSessionId;
+    const activeSessionId = pathSessionId;
+    const isFirstMessage = !allSessions.some((s) => s.sessionId === activeSessionId);
 
     const userMsg = input;
     setInput("");
@@ -162,6 +206,12 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
         updateLastMsgContent(buffer);
         buffer = "";
       }
+
+      if (isFirstMessage) {
+        setTimeout(() => {
+          getSessionList(true);
+        }, 1500);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
       console.log("toast: ", toast);
@@ -236,7 +286,17 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ funds }) => {
         </header>
 
         {/* 2. 消息展示区 - 背景改为极简灰色 */}
-        <main ref={scrollRef} className="flex-1 overflow-y-auto bg-[#fafafa] scroll-smooth">
+        <main
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto bg-[#fafafa] scroll-smooth"
+        >
+          {/* 如果正在加载旧消息，显示一个 Loading 圈 */}
+          {isFetchingMore && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="animate-spin text-indigo-500 w-4 h-4" />
+            </div>
+          )}
           <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
             {messages.length === 0 && (
               <div className="h-[60vh] flex flex-col items-center justify-center text-center">

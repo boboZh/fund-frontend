@@ -17,4 +17,5 @@ export interface AiChatModel {
 export interface Session {
   title: string;
   sessionId: string;
+  isVirtual?: boolean;
 }
