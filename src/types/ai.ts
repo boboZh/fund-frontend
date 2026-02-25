@@ -12,6 +12,7 @@ export interface AiChatModel {
   content: string;
   role: "ai" | "user";
   steps?: MessageStep[];
+  id: string;
 }
 
 export interface Session {

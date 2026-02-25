@@ -7,13 +7,14 @@ export interface ChatSlice {
   sessions: Session[];
   isLoadingList: boolean; // 加载列表的锁
   getSessionList: (force?: boolean) => void; // 获取对话列表
-  deleteSession: (sid: string) => Session[]; // 删除单个会话
+  deleteSession: (sid: string) => Promise<Session[]>; // 删除单个会话
   isInitialLoaded: boolean;
 }
 
 const createChatModule: StateCreator<ChatSlice> = (set, get) => ({
   curSession: null,
   isInitialLoaded: false,
+  isLoadingList: false,
   sessions: [],
   // 获取会话列表
   getSessionList: async (force = false) => {
@@ -24,7 +25,6 @@ const createChatModule: StateCreator<ChatSlice> = (set, get) => ({
     });
     try {
       const result = await apiGetSessionList();
-      console.log("data: ", result);
       set({
         sessions: result.data,
         isInitialLoaded: true,

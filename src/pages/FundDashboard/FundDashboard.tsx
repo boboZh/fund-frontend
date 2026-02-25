@@ -1,14 +1,23 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { RefreshCw, TrendingUp, Wallet, AlertCircle, Plus, Bot } from "lucide-react";
+import {
+  RefreshCw,
+  TrendingUp,
+  Wallet,
+  AlertCircle,
+  Plus,
+  Bot,
+  MessageSquarePlus,
+  X,
+} from "lucide-react";
 import AddFundModal from "./components/AddFundModal";
 import BatchAddFundModal from "./components/BatchAddModal";
 import { apiGetPortfolio, apiBatchImoportFund, apiDeleteFund } from "@/apis/fund.api";
 import FundTable, { type Column } from "./components/FundTable";
 import { toast } from "sonner";
 import type { PortfolioData, FundItem } from "@/types/fund";
-import { textColor } from "@/utils/tools";
+import { generateSessionId, textColor } from "@/utils/tools";
 import ConfigAlertModal from "./components/ConfigAlertModal";
-import { Link, useNavigate } from "react-router-dom";
+import ChatPanel from "@/pages/AiAssistant/components/ChatPanel";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,7 +28,15 @@ const Dashbard: React.FC = () => {
   const [curFund, setCurFund] = useState<FundItem | null>(null);
   const [isConfigAlertOpen, setIsConfigAlertOpen] = useState(false);
 
-  const navigate = useNavigate();
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+
+  const startNewSession = () => {
+    setSessionId(generateSessionId());
+  };
+  const toggleAiDrawer = () => {
+    setIsAiOpen((show) => !show);
+  };
 
   // 使用 useCallback 包裹，避免每次渲染都生成新函数
   const fetchData = useCallback(async () => {
@@ -62,10 +79,6 @@ const Dashbard: React.FC = () => {
     } catch (error) {
       console.error("删除失败：", error);
     }
-  };
-
-  const goAiAssistant = () => {
-    navigate(`/chat`);
   };
 
   // 类型守卫，如果data为空，则提前返回，这样下面的summary不用做空判断
@@ -135,8 +148,8 @@ const Dashbard: React.FC = () => {
     },
   ];
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 text-gray-800">
-      <div className="max-w-5xl mx-auto">
+    <div className="h-screen bg-gray-50   text-gray-800 flex w-full overflow-hidden ">
+      <div className="flex-1 h-full p-4 md:p-8 transition-all duration-300 ease-in-out  overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-end mb-8">
           <div>
@@ -201,7 +214,9 @@ const Dashbard: React.FC = () => {
           <div className="px-8 py-5 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
             <h3 className="font-bold text-gray-700">持仓明细</h3>
           </div>
-          <FundTable columns={columns} funds={data.funds} />
+          <div className="min-w-0 overflow-x-auto">
+            <FundTable columns={columns} funds={data.funds} />
+          </div>
         </div>
 
         {/* Warn Tips */}
@@ -224,20 +239,61 @@ const Dashbard: React.FC = () => {
           onRefresh={fetchData}
         />
 
-        {/* <Link to="/chat"> */}
-        <button
-          className="fixed right-6 bottom-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition active:scale-95"
-          onClick={goAiAssistant}
-        >
-          <Bot className="w-6 h-6" />
-        </button>
-        {/* </Link> */}
+        {/* aichat entry */}
+        {!isAiOpen && (
+          <button
+            className="fixed right-6 bottom-6 z-50 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition active:scale-95"
+            onClick={() => {
+              startNewSession();
+              toggleAiDrawer();
+            }}
+          >
+            <Bot className="w-6 h-6" />
+          </button>
+        )}
+
+        {/* 设置预警弹窗 */}
         <ConfigAlertModal
           fund={curFund as FundItem}
           isOpen={isConfigAlertOpen}
           onClose={() => setIsConfigAlertOpen(false)}
           onRefresh={fetchData}
         />
+      </div>
+      <div
+        className={`bg-white transition-all duration-300 ease-in-out flex-shrink-0 border-l border-gray-100 shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.05)] ${isAiOpen ? "w-[400px] opacity-100 translate-x-0" : "w-0 opacity-0 translate-x-full border-transparent"}`}
+      >
+        {/*
+        动画持续 300ms。在这 300ms 里，<ChatPanel> 的宽度会经历 0px -> 50px -> 200px -> 400px 的剧烈变化。
+        这会导致 ChatPanel 里面的文字疯狂换行、输入框挤成一团、滚动条乱闪！这种极度消耗性能的行为叫做 DOM Reflow（重排）
+        👇 核心修复：内层定宽！哪怕外层是 0px，这里依然是 400px，
+            超出的部分会被父级的 overflow-hidden 切掉。这样拉出的过程就像抽屉一样，里面内容不会乱动！ */}
+        <div className="w-[400px] h-full flex flex-col">
+          <ChatPanel
+            sessionId={sessionId}
+            onChatLoaded={setSessionId}
+            headerSlot={
+              <div className="flex items-center gap-1">
+                <button
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors group"
+                  onClick={startNewSession}
+                  title="开启新会话"
+                >
+                  <MessageSquarePlus className="w-4 h-4 transition-transform group-active:scale-95" />
+                  <span>新会话</span>
+                </button>
+                <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                <button
+                  onClick={toggleAiDrawer}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+                  title="关闭侧边栏"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            }
+          />
+        </div>
       </div>
     </div>
   );
