@@ -8,6 +8,7 @@ import {
   Bot,
   MessageSquarePlus,
   X,
+  Maximize2,
 } from "lucide-react";
 import AddFundModal from "./components/AddFundModal";
 import BatchAddFundModal from "./components/BatchAddModal";
@@ -18,6 +19,7 @@ import type { PortfolioData, FundItem } from "@/types/fund";
 import { generateSessionId, textColor } from "@/utils/tools";
 import ConfigAlertModal from "./components/ConfigAlertModal";
 import ChatPanel from "@/pages/AiAssistant/components/ChatPanel";
+import { useNavigate } from "react-router-dom";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,6 +32,8 @@ const Dashbard: React.FC = () => {
 
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | undefined>(undefined);
+
+  const navigate = useNavigate();
 
   const startNewSession = () => {
     setSessionId(generateSessionId());
@@ -283,6 +287,15 @@ const Dashbard: React.FC = () => {
                   <span>新会话</span>
                 </button>
                 <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                <button
+                  onClick={() => {
+                    navigate(sessionId ? `/chat/${sessionId}` : `/chat`);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors active:scale-95"
+                  title="全屏打开"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
                 <button
                   onClick={toggleAiDrawer}
                   className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"

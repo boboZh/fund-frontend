@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { AiChatModel, AiTaskStatus } from "@/types/ai";
 import { streamParser } from "@/utils/streamParser";
 import { myFetch } from "@/utils/myFetch";
@@ -13,12 +13,19 @@ const useChatStream = (
   const [input, setInput] = useState("");
   const { user } = useStore();
   const [messages, setMessages] = useState<AiChatModel[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 处理聊天逻辑
   const handleSend = async () => {
     if (!pathSessionId) return;
     if (!input.trim()) return;
 
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    setIsLoading(true);
     const _sessionId = pathSessionId;
 
     const userMsg = input;
@@ -63,6 +70,7 @@ const useChatStream = (
           userNickname: user?.nickname || "用户",
         }),
         credentials: "include",
+        signal: abortController.signal,
       });
       if (!response.body) return;
       const reader = response.body.getReader();
@@ -101,17 +109,21 @@ const useChatStream = (
 
       afterChatFinished(_sessionId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
-      console.log("toast: ", toast);
       console.log("aichat err: ", err);
-
+      let status: AiTaskStatus = "error";
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("用户终止了请求");
+        status = "abort"; // 主动终止请求，不走error流程
+      } else {
+        toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
+      }
       setMessages((prev) => {
         if (!prev || prev.length === 0) return [];
         const lastMsg = prev[prev.length - 1];
         if (lastMsg.role !== "ai") return prev;
         const newSteps = lastMsg.steps || [];
         if (newSteps.length > 0) {
-          newSteps[newSteps.length - 1].status = "error";
+          newSteps[newSteps.length - 1].status = status;
         }
         return [
           ...prev.slice(0, -1),
@@ -122,6 +134,9 @@ const useChatStream = (
         ];
       });
     } finally {
+      setIsLoading(false);
+      // 清除实例
+      abortControllerRef.current = null;
       setMessages((prev) => {
         if (!prev || prev.length === 0) return [];
         const lastMsg = prev[prev.length - 1];
@@ -143,12 +158,21 @@ const useChatStream = (
     }
   };
 
+  // 主动终止会话
+  const stopChat = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  }, []);
+
   return {
     input,
     messages,
     setInput,
     setMessages,
     handleSend,
+    stopChat,
+    isLoading,
   };
 };
 

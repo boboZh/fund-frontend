@@ -1,5 +1,5 @@
 export type AiTaskType = "idle" | "thinking" | "searching";
-export type AiTaskStatus = "loading" | "success" | "error";
+export type AiTaskStatus = "loading" | "success" | "error" | "abort";
 
 export interface MessageStep {
   taskType?: AiTaskType;
