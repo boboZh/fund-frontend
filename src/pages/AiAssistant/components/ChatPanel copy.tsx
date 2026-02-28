@@ -12,7 +12,7 @@ interface ChatPanelProps {
   headerSlot?: React.ReactNode;
 }
 const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSlot }) => {
-  const { user, sessions: allSessions } = useStore();
+  const { user, sessions: allSessions, isInitialLoaded } = useStore();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
@@ -96,6 +96,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
   );
 
   useEffect(() => {
+    if (!isInitialLoaded) return;
     if (sessionId !== currentSessionIdRef.current) {
       currentSessionIdRef.current = sessionId;
       // eslint-disable-next-line
@@ -114,7 +115,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         setMessages([]);
       }
     }
-  }, [sessionId, loadChatHistory, setMessages, allSessions, setPage, setHasMore, setInput]);
+  }, [
+    sessionId,
+    loadChatHistory,
+    setMessages,
+    allSessions,
+    setPage,
+    setHasMore,
+    setInput,
+    isInitialLoaded,
+  ]);
 
   // 监听滚动事件
   const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {

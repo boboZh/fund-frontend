@@ -13,6 +13,7 @@ export interface AiChatModel {
   role: "ai" | "user";
   steps?: MessageStep[];
   id: string;
+  status?: "success" | "abort" | "error";
 }
 
 export interface Session {

@@ -5,7 +5,7 @@ import useStore from "@/store";
 import { apiGetMsgList } from "@/apis/ai.api";
 import useChatStream from "@/hooks/useChatStream";
 import { toast } from "sonner";
-import { Virtuoso } from "react-virtuoso"; // 🌟 核心引入
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"; // 🌟 引入虚拟列表核心
 
 interface ChatPanelProps {
   sessionId: string | undefined;
@@ -14,9 +14,10 @@ interface ChatPanelProps {
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSlot }) => {
-  const { user, sessions: allSessions } = useStore();
+  const { user, sessions: allSessions, isInitialLoaded } = useStore();
 
-  const virtuosoRef = useRef(null); // 控制虚拟列表的 Ref
+  // 🌟 只需要这一个 Ref 来控制虚拟列表
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const currentSessionIdRef = useRef<string | undefined>(undefined);
 
   const { input, messages, setInput, setMessages, handleSend, isLoading, stopChat } = useChatStream(
@@ -31,7 +32,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
 
   const curSession = allSessions.find((s) => s.sessionId === sessionId) || null;
 
-  // 🌟 精简后的历史加载逻辑（不需要算高度了！）
+  // 🌟 极度清爽的加载逻辑：不需要算高度了，Virtuoso 会自动锚定滚动位置！
   const loadChatHistory = useCallback(
     async (sid: string, targetPage: number) => {
       if (targetPage === 1) setIsFetchingMore(false);
@@ -40,13 +41,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         const result = await apiGetMsgList({
           sessionId: sid,
           page: targetPage,
-          pageSize: 5,
+          pageSize: 15,
         });
         const newList = result.data.list;
         const more = result.data.hasMore;
 
         setMessages((prev) => {
-          // 直接拼在前面，Virtuoso 底层会自动处理滚动锚定，不会闪烁
+          // 直接将新数据拼在前面，Virtuoso 底层会自动处理滚动条锚定，不会出现闪烁！
           return targetPage === 1 ? newList : [...newList, ...prev];
         });
         setHasMore(more);
@@ -60,6 +61,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
   );
 
   useEffect(() => {
+    if (!isInitialLoaded) return;
     if (sessionId !== currentSessionIdRef.current) {
       currentSessionIdRef.current = sessionId;
       setPage(1);
@@ -77,9 +79,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         setMessages([]);
       }
     }
-  }, [sessionId, loadChatHistory, setMessages, allSessions, setInput]);
+  }, [sessionId, loadChatHistory, setMessages, allSessions, setInput, isInitialLoaded]);
 
-  // 🌟 Virtuoso 专属的触顶加载回调
+  // 🌟 触顶加载更多事件
   const loadMoreHistory = useCallback(() => {
     if (hasMore && !isFetchingMore && sessionId) {
       setIsFetchingMore(true);
@@ -100,8 +102,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
   }, [stopChat]);
 
   return (
-    <div className="flex-1 flex flex-col relative bg-white h-full">
-      <header className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10">
+    <div className="flex-1 flex flex-col relative bg-white h-full overflow-hidden">
+      {/* 1. 顶部 Header */}
+      <header className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10 flex-shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-indigo-200 shadow-lg">
             <Bot className="w-5 h-5 text-white" />
@@ -116,10 +119,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         {headerSlot}
       </header>
 
-      {/* 🌟 核心替换：使用 Virtuoso 接管整个渲染区 */}
+      {/* 2. 消息展示区 - 🌟 使用 Virtuoso 接管 */}
       <main className="flex-1 bg-[#fafafa] relative h-full">
+        {/* 将全局 Loading 悬浮在顶部 */}
         {isFetchingMore && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex justify-center py-2 px-4 bg-white/80 rounded-full shadow-sm backdrop-blur-sm">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex justify-center py-1.5 px-4 bg-white/90 rounded-full shadow-sm backdrop-blur-sm border border-gray-100">
             <Loader2 className="animate-spin text-indigo-500 w-4 h-4" />
           </div>
         )}
@@ -141,29 +145,33 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
             ref={virtuosoRef}
             className="w-full h-full"
             data={messages}
-            // 触顶加载更多
+            // 🌟 自动监听滚动到顶部，触发加载更多
             startReached={loadMoreHistory}
-            // 自动跟随新输出（打字机效果）滚动到底部
+            // 🌟 自动跟随流式输出滚动到底部 (打字机效果)
             followOutput="smooth"
-            // 初始渲染时直接定位到最底部
+            // 🌟 初次渲染时直接定位到最后一条消息
             initialTopMostItemIndex={messages.length > 0 ? messages.length - 1 : 0}
-            // 为了美观，给列表上下留一点间距
+            // 列表的首尾留白间距
             components={{
-              Header: () => <div className="h-8"></div>,
+              Header: () => <div className="h-4"></div>,
               Footer: () => <div className="h-8"></div>,
             }}
+            // 渲染单条消息
             itemContent={(index, msg) => {
               const isLastMsg = index === messages.length - 1;
               return (
                 <div className="max-w-4xl mx-auto px-4 md:px-8 py-4">
                   <div
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} ${
-                      isLastMsg ? "animate-in fade-in slide-in-from-bottom-2 duration-300" : ""
-                    }`}
+                    className={`flex ${
+                      msg.role === "user" ? "justify-end" : "justify-start"
+                    } ${isLastMsg ? "animate-in fade-in slide-in-from-bottom-2 duration-300" : ""}`}
                   >
                     <div
-                      className={`flex gap-3 max-w-[85%] group ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                      className={`flex gap-3 max-w-[85%] group ${
+                        msg.role === "user" ? "flex-row-reverse" : ""
+                      }`}
                     >
+                      {/* 角色头像 */}
                       <div
                         className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
                           msg.role === "user"
@@ -174,6 +182,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                         {msg.role === "user" ? "U" : <Bot size={16} />}
                       </div>
 
+                      {/* 消息气泡 */}
                       <div
                         className={`p-4 rounded-2xl text-sm leading-relaxed ${
                           msg.role === "user"
@@ -188,11 +197,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                         )}
                       </div>
 
+                      {/* 复制按钮 */}
                       {msg.role === "user" && (
                         <button
                           onClick={() => handleCopy(msg.content)}
                           title="复制内容"
-                          className="mt-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity p1.5 text-gray-400 hover:text-indigo-600"
+                          className="mt-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-indigo-600"
                         >
                           <Copy size={14} />
                         </button>
@@ -206,10 +216,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         )}
       </main>
 
-      {/* 3. 输入区域保持不变 ... */}
-      <div className="bg-white p-4 md:p-6">
+      {/* 3. 输入区域 */}
+      <div className="bg-white p-4 md:p-6 flex-shrink-0">
         <div className="max-w-4xl mx-auto relative group">
-          {/* 🌟 优化 1：悬浮在输入框正上方的停止按钮 */}
+          {/* 停止按钮 */}
           {isLoading && (
             <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 z-10 animate-in fade-in slide-in-from-bottom-2 duration-200">
               <button
@@ -217,7 +227,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                 onClick={stopChat}
                 className="group flex items-center gap-2 px-5 py-2 text-sm text-gray-600 bg-white border border-gray-200 rounded-full shadow-md hover:shadow-lg hover:border-red-200 hover:text-red-500 transition-all active:scale-95"
               >
-                {/* 停止图标 (小方块)，hover时跟着变红 */}
                 <span className="w-2.5 h-2.5 bg-gray-500 rounded-sm transition-colors group-hover:bg-red-500"></span>
                 停止生成
               </button>
@@ -232,14 +241,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                // 如果正在加载，禁止回车发送
                 if (!isLoading) handleSend();
               }
             }}
             placeholder="发送消息"
           />
 
-          {/* 🌟 优化 2：发送按钮不再消失，而是在加载时变灰并转圈 */}
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}

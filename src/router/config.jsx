@@ -1,7 +1,8 @@
 import FundDashboard from "@/pages/FundDashboard/FundDashboard";
 import Login from "@/pages/Login/Login";
 import Home from "@/pages/Home/Home";
-import AiAssistant from "@/pages/AiAssistant/AiAssistant"; // 假设的新页面
+import AiAssistant from "@/pages/AiAssistant/AiAssistant"; 
+import AudioDemo from "@/pages/AudioDemo/AudioDemo";
 
 export const routes = [
   {
@@ -23,5 +24,10 @@ export const routes = [
     path: '/chat/:sessionId?',
     element: <AiAssistant />,
     auth: true
-  }
+  },
+  {
+    path: '/audio-demo',
+    element: <AudioDemo />,
+    auth: true
+  },
 ];

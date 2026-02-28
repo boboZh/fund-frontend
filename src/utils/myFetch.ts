@@ -1,7 +1,7 @@
 import { handleExpired } from "./request";
-import { toast } from "sonner";
 
 export const myFetch = async (url: string, options: RequestInit) => {
+  console.log("options: ", options);
   const response = await fetch(url, options);
   if (!response.ok) {
     if (response.status === 401) {
