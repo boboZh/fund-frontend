@@ -15,11 +15,14 @@ const AiSteps: React.FC<AiStepsProps> = ({ steps }) => {
   const error = steps.some((s) => s.status === "error");
 
   return (
-    <div className="mb-2 transition-all">
+    // 🌟 修复 5：将 mb-2 改为 pb-2，并【彻底移除】 transition-all！
+    // transition-all 会导致组件挂载时高度发生渐变，让 Virtuoso 瞬间算错高度。
+    <div className="pb-2">
       {/** 总结行: 点击切换 展开、折叠 */}
       <div
         onClick={() => setIsExpand(!isExpand)}
-        className="flex items-center gap-2 text-xs text-indigo-500 cursor-pointer bg-indigo-50/50 w-fit px-3 py-1.5 rounded-full hover:bg-indigo-100 transition"
+        // 🌟 修复 6：只保留颜色的过渡 (transition-colors)，绝对不能过渡高度或 padding
+        className="flex items-center gap-2 text-xs text-indigo-500 cursor-pointer bg-indigo-50/50 w-fit px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors"
       >
         {isAllDone ? (
           <CheckCircle className="w-3 h-3 text-green-500" />
@@ -34,7 +37,9 @@ const AiSteps: React.FC<AiStepsProps> = ({ steps }) => {
 
       {/* 展开后的日志流明细 */}
       {isExpand && (
-        <div className="mt-2 ml-4 pl-4 border-1-2 border-indigo-100 space-y-2 py-2 animate-in fade-in slide-in-from-top-2">
+        // 🌟 修复 7：移除了 animate-in fade-in slide-in-from-top-2
+        // 在虚拟列表中，展开/折叠最好是瞬间完成的 DOM 切换，否则动画过程中的高度变化会让滚动条疯狂抖动。
+        <div className="mt-2 ml-4 pl-4 border-l-2 border-indigo-100 space-y-2 py-2">
           {steps.map((step) => (
             <div key={step.id} className="flex items-center gap-3 text-xs">
               {step.status === "loading" && (

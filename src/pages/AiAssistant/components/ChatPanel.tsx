@@ -1,11 +1,14 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+// 🌟 核心 1：引入 flushSync，解决 React 18 异步渲染导致的闪烁
+import { flushSync } from "react-dom";
 import { Send, Bot, Copy, Loader2 } from "lucide-react";
 import AiResponse from "./AiResponse";
 import useStore from "@/store";
 import { apiGetMsgList } from "@/apis/ai.api";
 import useChatStream from "@/hooks/useChatStream";
 import { toast } from "sonner";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso"; // 🌟 引入虚拟列表核心
+// 🌟 核心 2：引入专为聊天设计的虚拟列表库
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 interface ChatPanelProps {
   sessionId: string | undefined;
@@ -16,23 +19,65 @@ interface ChatPanelProps {
 const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSlot }) => {
   const { user, sessions: allSessions, isInitialLoaded } = useStore();
 
-  // 🌟 只需要这一个 Ref 来控制虚拟列表
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const currentSessionIdRef = useRef<string | undefined>(undefined);
-
   const { input, messages, setInput, setMessages, handleSend, isLoading, stopChat } = useChatStream(
     sessionId,
     onChatLoaded,
   );
 
-  // 消息记录分页
+  const currentSessionIdRef = useRef<string | undefined>(undefined);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
+  // 🌟 核心 3：用于保持向上加载时的滚动位置不跳动
+  // 给一个足够大的初始值，每次向上加载历史时减去加载的条数
+  const START_INDEX = 10000;
+  const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
+  // 🌟 1. 新增：记录用户是否处于最底部
+  const isAtBottomRef = useRef(true);
+
+  // 🌟 新增：用于记录上一次的消息长度和起始索引，用来精准判断是“发新消息”还是“加载历史”
+  const prevMsgLengthRef = useRef(messages.length);
+  const prevFirstIndexRef = useRef(firstItemIndex);
+
+  // 🌟 2. 提取最后一条消息的内容，用于监听 AI 打字
+  const lastMessageContent = messages[messages.length - 1]?.content;
+
   const curSession = allSessions.find((s) => s.sessionId === sessionId) || null;
 
-  // 🌟 极度清爽的加载逻辑：不需要算高度了，Virtuoso 会自动锚定滚动位置！
+  useEffect(() => {
+    const isNewMessageAdded = messages.length > prevMsgLengthRef.current;
+    const isHistoryLoaded = firstItemIndex < prevFirstIndexRef.current;
+
+    prevMsgLengthRef.current = messages.length;
+    prevFirstIndexRef.current = firstItemIndex;
+
+    // 场景 A：用户发新消息，或者 AI 刚冒出气泡 -> 优雅地平滑滚动
+    if (isNewMessageAdded && !isHistoryLoaded) {
+      requestAnimationFrame(() => {
+        virtuosoRef.current?.scrollToIndex({
+          index: firstItemIndex + messages.length - 1,
+          align: "end",
+          behavior: "smooth", // 新气泡出现时，平滑滚动
+        });
+      });
+      return;
+    }
+
+    // 场景 B：AI 正在流式打字 (内容不断变化) -> 瞬间吸底，拒绝延迟！
+    // 只有当用户没有故意往上翻看历史记录时，才自动跟随
+    if (isAtBottomRef.current && !isHistoryLoaded) {
+      virtuosoRef.current?.scrollToIndex({
+        index: firstItemIndex + messages.length - 1,
+        align: "end",
+        behavior: "auto", // ⚠️ 必须是 auto！瞬间贴合，打字机效果完美呈现
+      });
+    }
+  }, [messages.length, firstItemIndex, lastMessageContent]); // ⚠️ 依赖项加上了 lastMessageContent
+
+  // 加载会话历史
   const loadChatHistory = useCallback(
     async (sid: string, targetPage: number) => {
       if (targetPage === 1) setIsFetchingMore(false);
@@ -41,20 +86,29 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         const result = await apiGetMsgList({
           sessionId: sid,
           page: targetPage,
-          pageSize: 15,
+          pageSize: 15, // 虚拟列表可以适当调大 pageSize
         });
         const newList = result.data.list;
         const more = result.data.hasMore;
 
-        setMessages((prev) => {
-          // 直接将新数据拼在前面，Virtuoso 底层会自动处理滚动条锚定，不会出现闪烁！
-          return targetPage === 1 ? newList : [...newList, ...prev];
+        // 🌟 终极修复：使用 flushSync 强制 React 同步更新 DOM！
+        // 保证数据插入、索引更新、DOM 渲染在同一个浏览器的“帧”内完成。
+        // 让 Virtuoso 有机会在浏览器绘制前，瞬间把滚动条拉回正确的位置，彻底告别闪烁！
+        flushSync(() => {
+          if (targetPage === 1) {
+            setFirstItemIndex(START_INDEX);
+            setMessages(newList);
+          } else {
+            // ⚠️ 注意：绝不能把 setFirstItemIndex 写在 setMessages 的回调里！
+            // 必须像这样平行、同步地更新！
+            setFirstItemIndex((prev) => prev - newList.length);
+            setMessages((prev) => [...newList, ...prev]);
+          }
         });
+
         setHasMore(more);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "获取对话历史失败");
-      } finally {
-        setIsFetchingMore(false);
       }
     },
     [setMessages],
@@ -67,10 +121,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
       setPage(1);
       setHasMore(true);
       setInput("");
+      // 🌟 1. 切换会话时，立即重置分页和索引状态
+      // 这一步很重要，确保新会话从 10000 开始，而不是继承上一个会话的偏移量
+      setFirstItemIndex(START_INDEX);
 
       if (sessionId) {
         const validSession = allSessions.find((s) => s.sessionId === sessionId);
         if (validSession) {
+          // 先清空消息，避免画面残留上一会话的内容
+          setMessages([]);
           loadChatHistory(sessionId, 1);
         } else {
           setMessages([]);
@@ -81,16 +140,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
     }
   }, [sessionId, loadChatHistory, setMessages, allSessions, setInput, isInitialLoaded]);
 
-  // 🌟 触顶加载更多事件
-  const loadMoreHistory = useCallback(() => {
-    if (hasMore && !isFetchingMore && sessionId) {
-      setIsFetchingMore(true);
-      const nextPage = page + 1;
-      loadChatHistory(sessionId, nextPage).then(() => {
-        setPage(nextPage);
-      });
-    }
-  }, [hasMore, isFetchingMore, sessionId, page, loadChatHistory]);
+  // 向上滚动触顶时触发加载更多
+  const handleStartReached = useCallback(async () => {
+    if (!hasMore || isFetchingMore) return;
+    setIsFetchingMore(true);
+    const nextPage = page + 1;
+    await loadChatHistory(sessionId!, nextPage);
+    setIsFetchingMore(false);
+    setPage(nextPage);
+  }, [hasMore, isFetchingMore, page, loadChatHistory, sessionId]);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -102,9 +160,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
   }, [stopChat]);
 
   return (
-    <div className="flex-1 flex flex-col relative bg-white h-full overflow-hidden">
+    <div className="flex-1 flex flex-col relative bg-white h-full">
       {/* 1. 顶部 Header */}
-      <header className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10 flex-shrink-0">
+      <header className="h-16 flex items-center justify-between px-6 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-indigo-200 shadow-lg">
             <Bot className="w-5 h-5 text-white" />
@@ -119,17 +177,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         {headerSlot}
       </header>
 
-      {/* 2. 消息展示区 - 🌟 使用 Virtuoso 接管 */}
-      <main className="flex-1 bg-[#fafafa] relative h-full">
-        {/* 将全局 Loading 悬浮在顶部 */}
+      {/* 2. 消息展示区 - 替换为 Virtuoso */}
+      <main className="flex-1 bg-[#fafafa] relative">
+        {/* 🌟 优化 4：将 Loading 圈从 Virtuoso 内部抽离到外部绝对定位 */}
+        {/* 这样 Loading 的出现和消失，绝对不会影响虚拟列表内部的高度计算，防止高度塌陷闪烁 */}
         {isFetchingMore && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex justify-center py-1.5 px-4 bg-white/90 rounded-full shadow-sm backdrop-blur-sm border border-gray-100">
-            <Loader2 className="animate-spin text-indigo-500 w-4 h-4" />
+          <div className="absolute top-0 left-0 w-full h-14 flex items-center justify-center z-20 bg-gradient-to-b from-[#fafafa] to-transparent">
+            <Loader2 className="animate-spin text-indigo-500 w-5 h-5" />
           </div>
         )}
 
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center pb-20">
+        {messages.length === 0 && !isFetchingMore ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-8">
             <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center mb-4">
               <Bot size={32} className="text-indigo-600" />
             </div>
@@ -143,35 +202,53 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         ) : (
           <Virtuoso
             ref={virtuosoRef}
-            className="w-full h-full"
             data={messages}
-            // 🌟 自动监听滚动到顶部，触发加载更多
-            startReached={loadMoreHistory}
-            // 🌟 自动跟随流式输出滚动到底部 (打字机效果)
-            followOutput="smooth"
-            // 🌟 初次渲染时直接定位到最后一条消息
-            initialTopMostItemIndex={messages.length > 0 ? messages.length - 1 : 0}
-            // 列表的首尾留白间距
-            components={{
-              Header: () => <div className="h-4"></div>,
-              Footer: () => <div className="h-8"></div>,
+            key={sessionId}
+            firstItemIndex={firstItemIndex}
+            initialTopMostItemIndex={messages.length - 1}
+            startReached={handleStartReached}
+            // 🌟 新增：增加底部判定的容错距离！
+            // 🌟 修复 1：实时记录用户是否在底部（容错 150px）
+            atBottomThreshold={150}
+            atBottomStateChange={(isAtBottom) => {
+              isAtBottomRef.current = isAtBottom;
             }}
-            // 渲染单条消息
+            // 🌟 修复 2：将底层的跟随机制也改为 "auto" (瞬间贴合)
+            followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
+            // 🌟 修复 1：移除 alignToBottom={true}，它与向上加载历史记录严重冲突！
+
+            // 🌟 修复 2：增加默认预估高度。防止 AiResponse 异步渲染 Markdown 时高度从 0 突变
+            defaultItemHeight={100}
+            // 🌟 修复 3：加大预渲染范围，上下各预渲染 1000px，彻底消灭白屏
+            increaseViewportBy={{ top: 1000, bottom: 1000 }}
+            computeItemKey={(index, msg) => msg.id}
+            className="w-full h-full"
+            // 🌟 修复 4：强制禁用浏览器的原生滚动锚定，防止它和虚拟列表“打架”
+            style={{ overflowAnchor: "none" }}
+            components={{
+              Header: () => <div className="h-6"></div>,
+              Footer: () => <div className="h-4"></div>,
+            }}
             itemContent={(index, msg) => {
-              const isLastMsg = index === messages.length - 1;
+              // 🌟 修复 5：修正 isLastMsg 的计算逻辑！
+              // 在 Virtuoso 中使用了 firstItemIndex 后，传入的 index 是绝对索引（比如 9990）
+              // 所以必须加上 firstItemIndex 才能正确判断是否是最后一条！
+              const isLastMsg = index === firstItemIndex + messages.length - 1;
+
               return (
-                <div className="max-w-4xl mx-auto px-4 md:px-8 py-4">
+                <div className="max-w-4xl mx-auto px-4 md:px-8 pb-8">
                   <div
-                    className={`flex ${
-                      msg.role === "user" ? "justify-end" : "justify-start"
-                    } ${isLastMsg ? "animate-in fade-in slide-in-from-bottom-2 duration-300" : ""}`}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} ${
+                      // ⚠️ 警告：确保这里的动画只对“真正的新消息”生效，历史记录绝对不能带动画！
+                      isLastMsg ? "animate-in fade-in slide-in-from-bottom-2 duration-300" : ""
+                    }`}
                   >
                     <div
                       className={`flex gap-3 max-w-[85%] group ${
                         msg.role === "user" ? "flex-row-reverse" : ""
                       }`}
                     >
-                      {/* 角色头像 */}
+                      {/* 头像 */}
                       <div
                         className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
                           msg.role === "user"
@@ -193,20 +270,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                         {msg.role === "user" ? (
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                         ) : (
+                          // ⚠️ 终极排查点：如果这里面有 <img />，必须写死 min-height 或 aspect-ratio！
                           <AiResponse model={msg} />
                         )}
                       </div>
-
-                      {/* 复制按钮 */}
-                      {msg.role === "user" && (
-                        <button
-                          onClick={() => handleCopy(msg.content)}
-                          title="复制内容"
-                          className="mt-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-indigo-600"
-                        >
-                          <Copy size={14} />
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -216,10 +283,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         )}
       </main>
 
-      {/* 3. 输入区域 */}
-      <div className="bg-white p-4 md:p-6 flex-shrink-0">
+      {/* 3. 输入区域 (保持不变) */}
+      <div className="bg-white p-4 md:p-6">
         <div className="max-w-4xl mx-auto relative group">
-          {/* 停止按钮 */}
           {isLoading && (
             <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 z-10 animate-in fade-in slide-in-from-bottom-2 duration-200">
               <button

@@ -67,7 +67,8 @@ const useChatStream = (
     let buffer = "";
 
     try {
-      const response = await myFetch("http://localhost:3000/api/ai/chat", {
+      // http://localhost:3000
+      const response = await myFetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

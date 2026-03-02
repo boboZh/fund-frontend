@@ -9,9 +9,33 @@ interface AiResponseProps {
 }
 const AiResponse: React.FC<AiResponseProps> = ({ model }) => {
   return (
-    <div className={`ai-response`}>
+    // 🌟 修复 1：加上 flex flex-col 彻底阻断 Margin Collapsing（外边距折叠）
+    // 这是让 Virtuoso 能够 100% 精准测量高度的前提！
+    <div className="ai-response flex flex-col">
       <AiSteps steps={model.steps || []} />
-      <ReactMarkdown>{model.content}</ReactMarkdown>
+
+      {/* 🌟 修复 2：给 Markdown 容器加上 gap，用 flex 替代 margin */}
+      <div className="flex flex-col gap-2">
+        <ReactMarkdown
+          components={{
+            // 🌟 修复 3：拦截 Markdown 中的 p 标签，强制去掉 margin，改用父级的 gap 撑开间距
+            p: ({ node, ...props }) => <p className="m-0 leading-relaxed" {...props} />,
+
+            // 🌟 修复 4：拦截 img 标签。如果历史记录里有图片，异步加载会撑开高度导致闪烁。
+            // 给它一个默认的 min-height 可以完美缓解这个问题。
+            img: ({ node, ...props }) => (
+              <img
+                {...props}
+                className="max-w-full h-auto min-h-[100px] bg-gray-50 rounded-lg"
+                alt={props.alt || ""}
+              />
+            ),
+          }}
+        >
+          {model.content}
+        </ReactMarkdown>
+      </div>
+
       {model.status === "error" && (
         <div className="mt-3 pt-3 border-t border-red-100 text-xs text-red-500 flex items-center gap-1.5 font-medium">
           <AlertCircle size={14} /> AI 暂时休息了，生成意外中断
