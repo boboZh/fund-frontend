@@ -20,6 +20,7 @@ import { generateSessionId, textColor } from "@/utils/tools";
 import ConfigAlertModal from "./components/ConfigAlertModal";
 import ChatPanel from "@/pages/AiAssistant/components/ChatPanel";
 import { useNavigate } from "react-router-dom";
+import ActionMenu from "./components/ActionMenu";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -100,12 +101,12 @@ const Dashbard: React.FC = () => {
     {
       name: "基金信息",
       key: "fundName",
-      colClassName: "text-gray-800",
+      colClassName: "text-gray-800 whitespace-nowrap",
     },
     {
       name: "代码",
       key: "fundCode",
-      colClassName: "text-gray-400",
+      colClassName: "text-gray-400 font-medium",
     },
     {
       name: "实时预估",
@@ -135,19 +136,7 @@ const Dashbard: React.FC = () => {
       key: "op",
       colClassName: "font-medium",
       render: (fund) => {
-        return (
-          <div className="fn-flex align-middle gap-2 flex-nowrap flex-noshrink">
-            <button className="" onClick={() => handleDeleteClick(fund)}>
-              删除
-            </button>
-            <button
-              className="flex items-center bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-5 py-2.5 rounded-xl transition shadow-sm text-nowrap"
-              onClick={() => emitSetAlert(fund)}
-            >
-              设置提醒
-            </button>
-          </div>
-        );
+        return <ActionMenu fund={fund} onDelete={handleDeleteClick} onSetAlert={emitSetAlert} />;
       },
     },
   ];
