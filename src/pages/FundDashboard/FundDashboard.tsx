@@ -57,6 +57,7 @@ const Dashbard: React.FC = () => {
   // 自动刷新逻辑
   // React 18 Strict Mode（严格模式）：在开发环境下，React 会刻意双重挂载（Mount）组件来帮助你检查副作用清理是否正确。
   useEffect(() => {
+    // eslint-disable-next-line
     fetchData();
     const timer = setInterval(fetchData, 3600000);
     return () => clearInterval(timer);
