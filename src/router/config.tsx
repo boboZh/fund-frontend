@@ -1,8 +1,9 @@
 import FundDashboard from "@/pages/FundDashboard/FundDashboard";
 import Login from "@/pages/Login/Login";
 import Home from "@/pages/Home/Home";
-import AiAssistant from "@/pages/AiAssistant/AiAssistant"; 
+import AiAssistant from "@/pages/AiAssistant/AiAssistant";
 import AudioDemo from "@/pages/AudioDemo/AudioDemo";
+import ChunkUpload from "@/pages/Upload/ChunkUpload";
 
 export const routes = [
   {
@@ -18,16 +19,21 @@ export const routes = [
   {
     path: "/",
     element: <Home />,
-    auth: true,  
-  }, 
-  {
-    path: '/chat/:sessionId?',
-    element: <AiAssistant />,
-    auth: true
+    auth: true,
   },
   {
-    path: '/audio-demo',
+    path: "/chat/:sessionId?",
+    element: <AiAssistant />,
+    auth: true,
+  },
+  {
+    path: "/audio-demo",
     element: <AudioDemo />,
-    auth: true
+    auth: true,
+  },
+  {
+    path: "/file-upload",
+    element: <ChunkUpload />,
+    auth: true,
   },
 ];
