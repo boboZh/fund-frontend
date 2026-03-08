@@ -25,6 +25,7 @@ jobs:
           
       - name: 1. 安装依赖并打包
         run: |
+          nvm use 20
           npm install
           npm run build
           
