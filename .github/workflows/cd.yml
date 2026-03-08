@@ -35,6 +35,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}        # 你的服务器 IP
           username: ${{ secrets.SERVER_USER }}  # 通常是 root
           key: ${{ secrets.SERVER_SSH_KEY }}    # 服务器的私钥
-          source: "dist/*"
-          target: "/var/www/frontend/" # Nginx 代理的服务器目录root
+          source: "dist/"
+          target: "/var/www/frontend/dist" # Nginx 代理的服务器目录root
           strip_components: 1 # 自动去掉外层目录，只把 dist 里面的文件放进去
+          rm: true
