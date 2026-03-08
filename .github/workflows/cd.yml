@@ -3,7 +3,7 @@ name: Frontend CD
 on:
   push:
     tags: 
-      - 'v.*.*' # 只有打上tag，并push才触发部署
+      - 'v*.*.*' # 只有打上tag，并push才触发部署
 
   # 允许手动触发：在 GitHub 网页上点一下按钮就能随时部署
   workflow_dispatch: 
