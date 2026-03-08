@@ -1,0 +1,40 @@
+name: Frontend CD 
+
+on:
+  push:
+    tags: 
+      - 'v.*.*' # 只有打上tag，并push才触发部署
+
+  # 允许手动触发：在 GitHub 网页上点一下按钮就能随时部署
+  workflow_dispatch: 
+    inputs:
+      environment:
+        description: '选择部署环境'
+        required: true
+        default: 'production'
+jobs:
+  deploy:
+    name: 🚀 部署前端
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          
+      - name: 1. 安装依赖并打包
+        run: |
+          npm install
+          npm run build
+          
+      - name: 2. 将 Dist 目录推送到云服务器 Nginx
+        # 使用业界最流行的 scp 插件同步静态文件
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_IP }}        # 你的服务器 IP
+          username: ${{ secrets.SERVER_USER }}  # 通常是 root
+          key: ${{ secrets.SERVER_SSH_KEY }}    # 服务器的私钥
+          source: "dist/*"
+          target: "/var/www/frontend/" # Nginx 代理的服务器目录root
+          strip_components: 1 # 自动去掉外层目录，只把 dist 里面的文件放进去
