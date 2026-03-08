@@ -1,5 +1,4 @@
 import React, { useRef } from "react";
-import axios from "axios";
 import SparkMD5 from "spark-md5";
 import useStore from "@/store";
 import { AsyncQueue } from "@/utils/AsyncQueue";
@@ -22,6 +21,7 @@ const ChunkUpload: React.FC = () => {
       const reader = new FileReader();
 
       reader.onload = (e) => {
+        //  逐个读取切片，增量计算
         spark.append(e.target?.result as ArrayBuffer);
         count++;
         if (count === chunks.length) {
@@ -37,10 +37,11 @@ const ChunkUpload: React.FC = () => {
 
   const handleUpload = async () => {
     const file = fileInputRef.current?.files?.[0];
-    if (!file) return;
+    if (!file) return toast.info("请先选择文件");
 
     // 切片
     const chunks: { chunk: Blob; hash: string; index: number }[] = [];
+
     let cur = 0;
     while (cur < file.size) {
       chunks.push({
@@ -53,7 +54,7 @@ const ChunkUpload: React.FC = () => {
 
     //   算hash
     const fileHash = await calculateHash(chunks.map((c) => c.chunk));
-    setStatus("loading");
+    setStatus("uploading");
 
     const { data: verifyData } = await apiVerifyFileStatus({
       fileHash,
