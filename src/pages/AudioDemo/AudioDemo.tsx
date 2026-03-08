@@ -5,7 +5,7 @@ const AudioDemo: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // 🌟 核心核武器：记录下一段音频的绝对播放时间！(用来消除缝隙和咔哒声)
+  // 记录下一段音频的绝对播放时间！(用来消除缝隙和咔哒声)
   const nextPlayTimeRef = useRef<number>(0);
 
   const connectWS = () => {
@@ -18,14 +18,16 @@ const AudioDemo: React.FC = () => {
     }
 
     // 2. 连接后端 WebSocket
-    const ws = new WebSocket("ws://localhost:3000/api/audio-stream"); // 改成你后端的真实地址
-    ws.binaryType = "arraybuffer"; // ⚠️ 极其重要：声明我们要接收的是二进制原裸流
+    const host =
+      process.env.NODE_ENV === "development" ? "ws://127.0.0.1:3000" : "ws://112.126.27.148";
+    const ws = new WebSocket(`${host}/api/audio-stream`); // 改成你后端的真实地址
+    ws.binaryType = "arraybuffer"; // 声明接收的是二进制原裸流
 
     ws.onopen = () => {
       console.log("✅ WebSocket 连接成功");
       setIsConnected(true);
 
-      // 【防网络抖动秘籍】：不要立刻播首帧，故意往后延迟 200 毫秒！
+      // 防网络抖动：不要立刻播首帧，故意往后延迟 200 毫秒！
       // 这 200 毫秒就是我们的 Jitter Buffer 吸收区
       nextPlayTimeRef.current = audioCtxRef.current!.currentTime + 0.2;
     };
@@ -34,7 +36,7 @@ const AudioDemo: React.FC = () => {
       if (event.data instanceof ArrayBuffer) {
         const audioCtx = audioCtxRef.current!;
 
-        // 3. 【难点解码】后端发来的是 16bit 的 Int16Array PCM，
+        // 后端发来的是 16bit 的 Int16Array PCM，
         // Web Audio API 的底噪要求 Float32Array (-1.0 到 1.0 之间)，需要手动转码
         const int16Data = new Int16Array(event.data);
         const float32Data = new Float32Array(int16Data.length);
@@ -42,16 +44,16 @@ const AudioDemo: React.FC = () => {
           float32Data[i] = int16Data[i] / 32768.0; // 归一化
         }
 
-        // 4. 将 Float32 丢进音频缓冲区
+        // 将 Float32 丢进音频缓冲区
         const audioBuffer = audioCtx.createBuffer(1, float32Data.length, 16000);
         audioBuffer.getChannelData(0).set(float32Data);
 
-        // 5. 创建播放源并连接到物理喇叭
+        // 创建播放源并连接到物理喇叭
         const source = audioCtx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioCtx.destination);
 
-        // 🌟 6. 【高阶调度算法】：如果网络极度卡顿，导致下一段本该播放的时间早已经过去了
+        // 如果网络极度卡顿，导致下一段本该播放的时间早已经过去了
         // 必须立刻重置游标到当前时间，否则音频会堆积导致快进播放
         const currentTime = audioCtx.currentTime;
         if (nextPlayTimeRef.current < currentTime) {

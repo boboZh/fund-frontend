@@ -35,3 +35,46 @@ export const parseReponseChunk = (chunk: string) => {
 };
 
 export const generateSessionId = () => nanoid(10);
+
+// 图片标准化处理-都转为jpg
+export const normalizeImage = async (file: File): Promise<Uint8Array> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+
+      // 强制宽高为偶数（向下取偶）
+      const width = img.width % 2 === 0 ? img.width : img.width - 1;
+      const height = img.height % 2 === 0 ? img.height : img.height - 1;
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("canvas ctx is null"));
+      // 填充白色背景，防止透明png转jpg变黑
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        async (blob) => {
+          if (!blob) return reject(new Error("Canvas toBlob failed"));
+          const buffer = await blob.arrayBuffer();
+          resolve(new Uint8Array(buffer));
+        },
+        "image/jpeg",
+        0.95, // 图片质量95%
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`Image load failed: ${file.name}`));
+    };
+    img.src = url;
+  });
+};

@@ -10,7 +10,7 @@ const PermissionGuard = ({ children, auth }) => {
   }
 
   if (!auth && isLoggedIn && location.pathname === "/login") {
-    return <Navigate to="/fund-dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

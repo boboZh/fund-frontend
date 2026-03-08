@@ -8,3 +8,10 @@ export const apiLogin = (data: { phone: number; password: string }): Promise<Api
     url: "/user/login",
     data,
   });
+
+// 登出
+export const apiLogout = (): Promise<ApiResponse<User>> =>
+  request({
+    method: "post",
+    url: "/user/logout",
+  });
