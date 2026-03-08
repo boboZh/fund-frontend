@@ -2,7 +2,7 @@ import axios from "axios";
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 import useStore from "@/store";
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: string | number;
   message: string;
   data: T;

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-export default function AudioDemo() {
+const AudioDemo: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -11,7 +11,9 @@ export default function AudioDemo() {
   const connectWS = () => {
     // 1. 初始化浏览器的声卡环境 (AudioContext 必须在用户点击按钮后才能创建，浏览器安全限制)
     if (!audioCtxRef.current) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContextClass: typeof AudioContext =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!;
       audioCtxRef.current = new AudioContextClass({ sampleRate: 16000 });
     }
 
@@ -116,4 +118,6 @@ export default function AudioDemo() {
       </div>
     </div>
   );
-}
+};
+
+export default AudioDemo;

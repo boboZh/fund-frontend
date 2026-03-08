@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-// 🌟 核心 1：引入 flushSync，解决 React 18 异步渲染导致的闪烁
 import { flushSync } from "react-dom";
 import { Send, Bot, Copy, Loader2 } from "lucide-react";
 import AiResponse from "./AiResponse";
@@ -7,7 +6,6 @@ import useStore from "@/store";
 import { apiGetMsgList } from "@/apis/ai.api";
 import useChatStream from "@/hooks/useChatStream";
 import { toast } from "sonner";
-// 🌟 核心 2：引入专为聊天设计的虚拟列表库
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 interface ChatPanelProps {
@@ -31,18 +29,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-  // 🌟 核心 3：用于保持向上加载时的滚动位置不跳动
+  //  保持向上加载时的滚动位置不跳动
   // 给一个足够大的初始值，每次向上加载历史时减去加载的条数
   const START_INDEX = 10000;
   const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
-  // 🌟 1. 新增：记录用户是否处于最底部
+  //  记录用户是否处于最底部
   const isAtBottomRef = useRef(true);
 
-  // 🌟 新增：用于记录上一次的消息长度和起始索引，用来精准判断是“发新消息”还是“加载历史”
+  //  记录上一次的消息长度和起始索引，用来精准判断是“发新消息”还是“加载历史”
   const prevMsgLengthRef = useRef(messages.length);
   const prevFirstIndexRef = useRef(firstItemIndex);
 
-  // 🌟 2. 提取最后一条消息的内容，用于监听 AI 打字
+  // 提取最后一条消息的内容，用于监听 AI 打字
   const lastMessageContent = messages[messages.length - 1]?.content;
 
   const curSession = allSessions.find((s) => s.sessionId === sessionId) || null;
@@ -75,7 +73,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         behavior: "auto", // ⚠️ 必须是 auto！瞬间贴合，打字机效果完美呈现
       });
     }
-  }, [messages.length, firstItemIndex, lastMessageContent]); // ⚠️ 依赖项加上了 lastMessageContent
+  }, [messages.length, firstItemIndex, lastMessageContent]);
 
   // 加载会话历史
   const loadChatHistory = useCallback(
@@ -91,7 +89,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
         const newList = result.data.list;
         const more = result.data.hasMore;
 
-        // 🌟 终极修复：使用 flushSync 强制 React 同步更新 DOM！
+        // 使用 flushSync 强制 React 同步更新 DOM！
         // 保证数据插入、索引更新、DOM 渲染在同一个浏览器的“帧”内完成。
         // 让 Virtuoso 有机会在浏览器绘制前，瞬间把滚动条拉回正确的位置，彻底告别闪烁！
         flushSync(() => {
@@ -99,7 +97,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
             setFirstItemIndex(START_INDEX);
             setMessages(newList);
           } else {
-            // ⚠️ 注意：绝不能把 setFirstItemIndex 写在 setMessages 的回调里！
+            // 不能把 setFirstItemIndex 写在 setMessages 的回调里！
             // 必须像这样平行、同步地更新！
             setFirstItemIndex((prev) => prev - newList.length);
             setMessages((prev) => [...newList, ...prev]);
@@ -118,10 +116,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
     if (!isInitialLoaded) return;
     if (sessionId !== currentSessionIdRef.current) {
       currentSessionIdRef.current = sessionId;
+      //  eslint-disable-next-line
       setPage(1);
       setHasMore(true);
       setInput("");
-      // 🌟 1. 切换会话时，立即重置分页和索引状态
+      // 切换会话时，立即重置分页和索引状态
       // 这一步很重要，确保新会话从 10000 开始，而不是继承上一个会话的偏移量
       setFirstItemIndex(START_INDEX);
 
@@ -207,30 +206,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
             firstItemIndex={firstItemIndex}
             initialTopMostItemIndex={messages.length - 1}
             startReached={handleStartReached}
-            // 🌟 新增：增加底部判定的容错距离！
-            // 🌟 修复 1：实时记录用户是否在底部（容错 150px）
+            // 增加底部判定的容错距离！
+            // 实时记录用户是否在底部（容错 150px）
             atBottomThreshold={150}
             atBottomStateChange={(isAtBottom) => {
               isAtBottomRef.current = isAtBottom;
             }}
-            // 🌟 修复 2：将底层的跟随机制也改为 "auto" (瞬间贴合)
+            // 将底层的跟随机制也改为 "auto" (瞬间贴合)
             followOutput={(isAtBottom) => (isAtBottom ? "auto" : false)}
-            // 🌟 修复 1：移除 alignToBottom={true}，它与向上加载历史记录严重冲突！
+            // 移除 alignToBottom={true}，它与向上加载历史记录严重冲突！
 
-            // 🌟 修复 2：增加默认预估高度。防止 AiResponse 异步渲染 Markdown 时高度从 0 突变
+            // 增加默认预估高度。防止 AiResponse 异步渲染 Markdown 时高度从 0 突变
             defaultItemHeight={100}
-            // 🌟 修复 3：加大预渲染范围，上下各预渲染 1000px，彻底消灭白屏
+            // 加大预渲染范围，上下各预渲染 1000px，彻底消灭白屏
             increaseViewportBy={{ top: 1000, bottom: 1000 }}
             computeItemKey={(index, msg) => msg.id}
             className="w-full h-full"
-            // 🌟 修复 4：强制禁用浏览器的原生滚动锚定，防止它和虚拟列表“打架”
+            // 强制禁用浏览器的原生滚动锚定，防止它和虚拟列表“打架”
             style={{ overflowAnchor: "none" }}
             components={{
               Header: () => <div className="h-6"></div>,
               Footer: () => <div className="h-4"></div>,
             }}
             itemContent={(index, msg) => {
-              // 🌟 修复 5：修正 isLastMsg 的计算逻辑！
+              // 修正 isLastMsg 的计算逻辑！
               // 在 Virtuoso 中使用了 firstItemIndex 后，传入的 index 是绝对索引（比如 9990）
               // 所以必须加上 firstItemIndex 才能正确判断是否是最后一条！
               const isLastMsg = index === firstItemIndex + messages.length - 1;
@@ -239,7 +238,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                 <div className="max-w-4xl mx-auto px-4 md:px-8 pb-8">
                   <div
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} ${
-                      // ⚠️ 警告：确保这里的动画只对“真正的新消息”生效，历史记录绝对不能带动画！
+                      // 确保这里的动画只对“真正的新消息”生效，历史记录绝对不能带动画！
                       isLastMsg ? "animate-in fade-in slide-in-from-bottom-2 duration-300" : ""
                     }`}
                   >
@@ -270,10 +269,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                         {msg.role === "user" ? (
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                         ) : (
-                          // ⚠️ 终极排查点：如果这里面有 <img />，必须写死 min-height 或 aspect-ratio！
+                          // 如果这里面有 <img />，必须写死 min-height 或 aspect-ratio！
                           <AiResponse model={msg} />
                         )}
                       </div>
+
+                      {msg.role === "user" && (
+                        <button
+                          onClick={() => handleCopy(msg.content)}
+                          title="复制内容"
+                          className="mt-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity p1.5   text-gray-400 hover:text-indigo-600"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

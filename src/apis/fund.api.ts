@@ -1,5 +1,5 @@
 import request, { type ApiResponse } from "../utils/request";
-import type { AddFundItem, PortfolioData } from "@/types/fund";
+import type { FundItem, PortfolioData } from "@/types/fund";
 // 获取全部持仓信息
 export const apiGetPortfolio = (params = {}): Promise<ApiResponse<PortfolioData>> =>
   request({
@@ -9,7 +9,7 @@ export const apiGetPortfolio = (params = {}): Promise<ApiResponse<PortfolioData>
   });
 
 // 批量导入
-export const apiBatchImoportFund = (data: { funds: AddFundItem[] }): Promise<ApiResponse<void>> =>
+export const apiBatchImoportFund = (data: { funds: FundItem[] }): Promise<ApiResponse<void>> =>
   request({
     method: "post",
     url: "/fund/batchAdd",
@@ -19,14 +19,14 @@ export const apiBatchImoportFund = (data: { funds: AddFundItem[] }): Promise<Api
 // 根据code获取基金信息
 export const apiGetFundInfo = (
   fundCode: string,
-): Promise<ApiResponse<{ fundName: string; [propName: string]: any }>> =>
+): Promise<ApiResponse<{ fundName: string; [propName: string]: unknown }>> =>
   request({
     method: "get",
     url: `/fund/getInfoByCode/${fundCode}`,
   });
 
 // 上传图片获取持仓数据
-export const apiGetImgInfo = (data: FormData): Promise<ApiResponse<AddFundItem[]>> =>
+export const apiGetImgInfo = (data: FormData): Promise<ApiResponse<FundItem[]>> =>
   request({
     method: "post",
     url: "/fund/ocrAnalyze",

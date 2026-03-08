@@ -19,10 +19,12 @@ const AiResponse: React.FC<AiResponseProps> = ({ model }) => {
         <ReactMarkdown
           components={{
             // 拦截 Markdown 中的 p 标签，强制去掉 margin，改用父级的 gap 撑开间距
+            // eslint-disable-next-line
             p: ({ node, ...props }) => <p className="m-0 leading-relaxed" {...props} />,
 
             // 拦截 img 标签。如果历史记录里有图片，异步加载会撑开高度导致闪烁。
             // 给它一个默认的 min-height 可以完美缓解这个问题。
+            // eslint-disable-next-line
             img: ({ node, ...props }) => (
               <img
                 {...props}

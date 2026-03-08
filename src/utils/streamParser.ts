@@ -1,4 +1,4 @@
-import type { AiTaskType, AiTaskStatus } from "@/types/ai";
+import type { AiTaskStatus } from "@/types/ai";
 export const streamParser = (
   _buffer: string,
   updateLastMsgContent: (text: string) => void,
