@@ -12,15 +12,15 @@ export const routes = [
     auth: false, // 不需要登录
   },
   {
-    path: "/fund-dashboard",
+    path: "/", //fund-dashboard
     element: <FundDashboard />,
     auth: true, // 需要登录
   },
-  {
-    path: "/",
-    element: <Home />,
-    auth: true,
-  },
+  //   {
+  //     path: "/",
+  //     element: <Home />,
+  //     auth: true,
+  //   },
   {
     path: "/chat/:sessionId?",
     element: <AiAssistant />,
