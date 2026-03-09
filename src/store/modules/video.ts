@@ -82,7 +82,7 @@ const createVideoModule: StateCreator<VideoSlice> = (set, get) => ({
 
       // 读取生成的视频文件
       const data = await ffmpeg.readFile("output.mp4");
-      // 【新增】检查生成的文件是否为空！
+      // 检查生成的文件是否为空！
       if (data.byteLength === 0) {
         throw new Error("生成的视频大小为 0 字节，请检查控制台 [FFmpeg Log] 的报错信息！");
       }

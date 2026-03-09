@@ -1,9 +1,9 @@
 import React, { useRef } from "react";
-import SparkMD5 from "spark-md5";
 import useStore from "@/store";
 import { AsyncQueue } from "@/utils/AsyncQueue";
 import { apiMergeFile, apiUpload, apiVerifyFileStatus } from "@/apis/upload.api";
 import { toast } from "sonner";
+import { calculateHashWithWorker } from "@/utils/upload";
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5M一个切片
 const MAX_CONCURRENCY = 3; // 最多同时传3个切片
@@ -11,29 +11,6 @@ const MAX_CONCURRENCY = 3; // 最多同时传3个切片
 const ChunkUpload: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { progress, status, setProgress, setStatus } = useStore();
-
-  const calculateHash = async (chunks: Blob[]): Promise<string> => {
-    setStatus("calculating");
-
-    return new Promise((resolve) => {
-      const spark = new SparkMD5.ArrayBuffer();
-      let count = 0;
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        //  逐个读取切片，增量计算
-        spark.append(e.target?.result as ArrayBuffer);
-        count++;
-        if (count === chunks.length) {
-          resolve(spark.end());
-        } else {
-          reader.readAsArrayBuffer(chunks[count]);
-        }
-      };
-
-      reader.readAsArrayBuffer(chunks[0]);
-    });
-  };
 
   const handleUpload = async () => {
     const file = fileInputRef.current?.files?.[0];
@@ -52,10 +29,25 @@ const ChunkUpload: React.FC = () => {
       cur += CHUNK_SIZE;
     }
 
-    //   算hash
-    const fileHash = await calculateHash(chunks.map((c) => c.chunk));
-    setStatus("uploading");
+    // 在发给 Worker 之前，我们用更大的颗粒度来切文件，专供 Hash 计算
+    // 5M切片用时18s，50M切片用时16s，
+    // 切片小，频繁跨越 JS 与 Wasm 边界的“通信损耗”，吃掉了 Wasm 带来的算力红利
+    const HASH_CHUNK_SIZE = 50 * 1024 * 1024; // 改成 50MB 一切
+    let offset = 0;
+    const hashChunks = [];
 
+    while (offset < file.size) {
+      hashChunks.push({ chunk: file.slice(offset, offset + HASH_CHUNK_SIZE) });
+      offset += HASH_CHUNK_SIZE;
+    }
+
+    //   算hash
+    setStatus("calculating");
+    const prev = Date.now();
+    const fileHash = await calculateHashWithWorker(hashChunks.map((c) => c.chunk));
+    console.log("calculate costs: ", Date.now() - prev);
+    return setStatus("idle");
+    setStatus("uploading");
     const { data: verifyData } = await apiVerifyFileStatus({
       fileHash,
       fileName: file.name,
@@ -63,6 +55,10 @@ const ChunkUpload: React.FC = () => {
 
     if (!verifyData.shouldUpload) {
       setStatus("success");
+
+      setTimeout(() => {
+        setStatus("idle");
+      }, 500);
       setProgress(100);
       toast.success("秒传成功");
       return;
@@ -99,6 +95,9 @@ const ChunkUpload: React.FC = () => {
       size: file.size,
     });
     setStatus("success");
+    setTimeout(() => {
+      setStatus("idle");
+    }, 500);
     toast.success("上传、合并成功");
   };
 
