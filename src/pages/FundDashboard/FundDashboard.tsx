@@ -21,6 +21,7 @@ import ConfigAlertModal from "./components/ConfigAlertModal";
 import ChatPanel from "@/pages/AiAssistant/components/ChatPanel";
 import { useNavigate } from "react-router-dom";
 import ActionMenu from "./components/ActionMenu";
+import DashboardSkeleton from "./components/DashboardSkeleton";
 
 const Dashbard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,7 +89,12 @@ const Dashbard: React.FC = () => {
   };
 
   // 类型守卫，如果data为空，则提前返回，这样下面的summary不用做空判断
-  if (!data) return <div className="p-10 text-center">正在连接后端服务...</div>;
+  if (!data)
+    return (
+      <div className="h-screen bg-gray-50 text-gray-800 flex w-full overflow-hidden">
+        <DashboardSkeleton />
+      </div>
+    );
 
   // 打开设置提醒
   const emitSetAlert = (fund: FundItem) => {

@@ -14,6 +14,19 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // 🌟 新增：SSR 相关配置
+  ssr: {
+    // 如果你有某些库只在浏览器运行（比如带有 window 对象的），需要在这里排除
+    // 对于你的项目，通常 react-router-dom 和 zustand 没问题
+    noExternal: ["lucide-react", "sonner"], // 确保这些库被打包进 SSR Bundle 中，防止 Node.js 无法识别 ESM
+  },
+  build: {
+    // 生产环境打包配置
+    rollupOptions: {
+      // 如果是客户端打包，入口是 index.html
+      // 如果是服务端打包，Vite 命令行会通过 --ssr 指定入口，这里可以不写死
+    },
+  },
   optimizeDeps: {
     //@ffmpeg/ffmpeg 内部动态调用了 Web Worker，Vite 的预构建工具没有正确处理这个 Worker 文件的路径，导致浏览器去 .vite/deps/ 下找 worker.js 时找不到。
     exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/utils"],

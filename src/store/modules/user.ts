@@ -17,20 +17,33 @@ export interface AuthSlice {
   setLogout: () => void;
 }
 
+const getSafeStorage = (key: string) => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem(key);
+  }
+  return null;
+};
+
 const createAuthModule: StateCreator<AuthSlice> = (set) => ({
-  user: JSON.parse(localStorage.getItem("user") || "null"),
-  nickname: localStorage.getItem("nickname"),
-  isLoggedIn: !!localStorage.getItem("nickname"),
+  user: JSON.parse(getSafeStorage("user") || "null"),
+  nickname: getSafeStorage("nickname"),
+  isLoggedIn: !!getSafeStorage("nickname"),
 
   setLogin: (userData) => {
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("nickname", userData.nickname);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("nickname", userData.nickname);
+    }
+
     set({ user: userData, nickname: userData.nickname, isLoggedIn: true });
   },
 
   setLogout: () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("nickname");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user");
+      localStorage.removeItem("nickname");
+    }
+
     set({ user: null, nickname: null, isLoggedIn: false });
   },
 });

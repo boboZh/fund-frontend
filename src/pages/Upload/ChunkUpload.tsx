@@ -3,7 +3,7 @@ import useStore from "@/store";
 import { AsyncQueue } from "@/utils/AsyncQueue";
 import { apiMergeFile, apiUpload, apiVerifyFileStatus } from "@/apis/upload.api";
 import { toast } from "sonner";
-import { calculateHashWithWorker } from "@/utils/upload";
+import { calculateHashWithWorker, calculateSampleHash } from "@/utils/upload";
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5M一个切片
 const MAX_CONCURRENCY = 3; // 最多同时传3个切片
@@ -44,7 +44,8 @@ const ChunkUpload: React.FC = () => {
     //   算hash
     setStatus("calculating");
     const prev = Date.now();
-    const fileHash = await calculateHashWithWorker(hashChunks.map((c) => c.chunk));
+    // const fileHash = await calculateHashWithWorker(hashChunks.map((c) => c.chunk));
+    const fileHash = await calculateSampleHash(file);
     console.log("calculate costs: ", Date.now() - prev);
     return setStatus("idle");
     setStatus("uploading");
