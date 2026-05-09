@@ -85,7 +85,7 @@ const ChatSidebar: React.FC = () => {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-2 space-y-1 overflow-x-hidden">
-          {sessions.map((s) => (
+          {sessions?.map?.((s) => (
             <div
               key={s.sessionId}
               onClick={() => navigate(`/chat/${s.sessionId}`)}
@@ -115,7 +115,7 @@ const ChatSidebar: React.FC = () => {
                 </>
               )}
             </div>
-          ))}
+          )) || <div className="text-sm text-gray-400">暂无会话</div>}
         </div>
       )}
 

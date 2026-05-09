@@ -26,7 +26,7 @@ const createChatModule: StateCreator<ChatSlice> = (set, get) => ({
     try {
       const result = await apiGetSessionList();
       set({
-        sessions: result.data,
+        sessions: result?.data || [],
         isInitialLoaded: true,
         isLoadingList: false,
       });
