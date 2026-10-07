@@ -8,6 +8,7 @@ import {
   Code,
   Upload,
   LogOut,
+  FileText,
 } from "lucide-react";
 import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -27,6 +28,7 @@ const MainLayout: React.FC = () => {
     { name: "音频 Demo", path: "/audio", icon: Music },
     // { name: "富文本", path: "/editor", icon: FileText },
     { name: "分片上传", path: "/upload", icon: Upload },
+    { name: "研报检索", path: "/rag", icon: FileText },
     { name: "图片转视频", path: "/image-to-video", icon: Code },
   ];
 

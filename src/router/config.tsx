@@ -5,6 +5,7 @@ import AiAssistant from "@/pages/AiAssistant/AiAssistant";
 import AudioDemo from "@/pages/AudioDemo/AudioDemo";
 import ChunkUpload from "@/pages/Upload/ChunkUpload";
 import ImageToVideo from "@/pages/ImageToVideo/ImageToVideo";
+import RagLab from "@/pages/RagLab/RagLab";
 
 import { createBrowserRouter, type RouteObject } from "react-router-dom";
 import PermissionGuard from "./PermissionGuard";
@@ -44,6 +45,10 @@ const routes: RouteObject[] = [
       {
         path: "/upload",
         element: <ChunkUpload />,
+      },
+      {
+        path: "/rag",
+        element: <RagLab />,
       },
       {
         path: "/image-to-video",
