@@ -40,6 +40,30 @@ export interface ResearchChunk {
   charCount: number;
 }
 
+export interface ResearchHit {
+  rank: number;
+  score: number;
+  id: number;
+  docId: number;
+  chunkType: ResearchChunk["chunkType"];
+  pageStart: number | null;
+  pageEnd: number | null;
+  heading: string | null;
+  content: string;
+  stockCode: string;
+  stockName: string;
+  title: string;
+  org: string;
+  reportDate: string;
+}
+
+export interface ResearchSearch {
+  mode: "vector";
+  topK: number;
+  stockCode: string | null;
+  hits: ResearchHit[];
+}
+
 export interface DroppedLine {
   page: number;
   reason: string;

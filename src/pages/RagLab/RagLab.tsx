@@ -10,12 +10,14 @@ import {
   apiPreviewResearch,
   apiRechunkResearch,
   apiRetryResearch,
+  apiSearchResearch,
 } from "@/apis/rag.api";
 import type {
   DroppedLine,
   FilledFrom,
   ResearchChunk,
   ResearchDoc,
+  ResearchHit,
   ResearchSuggestion,
 } from "@/types/rag";
 
@@ -56,10 +58,10 @@ const errorMessage = (err: unknown, fallback: string) => {
   return err instanceof Error ? err.message : fallback;
 };
 
-const pageLabel = (chunk: ResearchChunk) => {
-  if (!chunk.pageStart) return "";
-  if (!chunk.pageEnd || chunk.pageStart === chunk.pageEnd) return `第 ${chunk.pageStart} 页`;
-  return `第 ${chunk.pageStart}-${chunk.pageEnd} 页`;
+const pageLabel = (item: { pageStart: number | null; pageEnd: number | null }) => {
+  if (!item.pageStart) return "";
+  if (!item.pageEnd || item.pageStart === item.pageEnd) return `第 ${item.pageStart} 页`;
+  return `第 ${item.pageStart}-${item.pageEnd} 页`;
 };
 
 const RagLab: React.FC = () => {
@@ -84,6 +86,11 @@ const RagLab: React.FC = () => {
   const [maxChars, setMaxChars] = useState(800);
   const [overlap, setOverlap] = useState(1);
   const [rechunking, setRechunking] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [topK, setTopK] = useState(5);
+  const [searching, setSearching] = useState(false);
+  const [hits, setHits] = useState<ResearchHit[] | null>(null);
+  const [matchedCode, setMatchedCode] = useState<string | null>(null);
 
   const pending = docs.some((doc) => ["uploaded", "parsing", "embedding"].includes(doc.status));
   const activeDoc = docs.find((doc) => doc.id === activeId) || null;
@@ -220,6 +227,21 @@ const RagLab: React.FC = () => {
     }
   };
 
+  const handleSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query || searching) return;
+    setSearching(true);
+    try {
+      const result = await apiSearchResearch({ query, topK });
+      setHits(result.data.hits || []);
+      setMatchedCode(result.data.stockCode);
+    } catch (err) {
+      toast.error(errorMessage(err, "检索失败"));
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     try {
       await apiDeleteResearch(id);
@@ -236,7 +258,7 @@ const RagLab: React.FC = () => {
 
   return (
     <div className="h-full overflow-hidden flex bg-white text-gray-900">
-      <section className="w-[420px] shrink-0 border-r border-gray-200 h-full overflow-y-auto p-5 space-y-6">
+      <section className="w-[360px] shrink-0 border-r border-gray-200 h-full overflow-y-auto p-5 space-y-6">
         <div>
           <h1 className="text-lg font-semibold">研报入库</h1>
           <p className="mt-1 text-sm text-gray-500 leading-relaxed">
@@ -358,7 +380,7 @@ const RagLab: React.FC = () => {
         </div>
       </section>
 
-      <section className="flex-1 h-full overflow-y-auto p-6">
+      <section className="w-[420px] shrink-0 h-full overflow-y-auto p-6 border-r border-gray-100">
         {!activeDoc && <p className="text-sm text-gray-400">入库后在这里查看切出来的段落。</p>}
         {activeDoc && (
           <>
@@ -443,6 +465,79 @@ const RagLab: React.FC = () => {
             )}
           </>
         )}
+      </section>
+
+      <section className="flex-1 min-w-0 h-full flex flex-col overflow-hidden p-5">
+        <div className="shrink-0">
+          <h2 className="text-lg font-semibold">向量检索</h2>
+          <p className="mt-1 text-sm text-gray-500 leading-relaxed">
+            只在当前账号已入库的研报里，按问题和段落的相似度取前几条。
+          </p>
+          <textarea
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="例如：广汇能源（600256）的目标价是多少"
+            rows={4}
+            className="mt-4 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+          />
+          <div className="mt-3 flex items-end gap-3">
+            <label className="text-xs text-gray-500">
+              top-k
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={topK}
+                onChange={(event) =>
+                  setTopK(Math.min(20, Math.max(1, Number(event.target.value) || 1)))
+                }
+                className="mt-1 block w-20 h-9 px-2 rounded-lg border border-gray-200 text-sm text-gray-900"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={!searchQuery.trim() || searching}
+              className="h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:bg-gray-200 disabled:text-gray-400"
+            >
+              {searching ? "检索中…" : "检索"}
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto mt-4">
+        {matchedCode && (
+          <p className="mb-3 text-xs text-gray-500">已按股票代码 {matchedCode} 限定范围</p>
+        )}
+        {hits && hits.length === 0 && (
+          <p className="text-sm text-gray-400">没有找到相关片段</p>
+        )}
+        {hits && hits.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
+                  <th className="py-2 pr-2 font-medium">名次</th>
+                  <th className="py-2 pr-2 font-medium">余弦分</th>
+                  <th className="py-2 pr-2 font-medium">标题</th>
+                  <th className="py-2 pr-2 font-medium whitespace-nowrap">页码</th>
+                  <th className="py-2 font-medium">正文</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hits.map((hit) => (
+                  <tr key={hit.id} className="border-b border-gray-100 align-top">
+                    <td className="py-3 pr-2 text-gray-500">{hit.rank}</td>
+                    <td className="py-3 pr-2 tabular-nums">{hit.score.toFixed(3)}</td>
+                    <td className="py-3 pr-2 min-w-24">{hit.title}</td>
+                    <td className="py-3 pr-2 whitespace-nowrap text-gray-500">{pageLabel(hit)}</td>
+                    <td className="py-3 whitespace-pre-wrap leading-relaxed">{hit.content}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        </div>
       </section>
     </div>
   );

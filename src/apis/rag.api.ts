@@ -1,5 +1,11 @@
 import request, { type ApiResponse } from "../utils/request";
-import type { ResearchChunk, ResearchDoc, ResearchPreview, DroppedLine } from "@/types/rag";
+import type {
+  ResearchChunk,
+  ResearchDoc,
+  ResearchPreview,
+  ResearchSearch,
+  DroppedLine,
+} from "@/types/rag";
 
 export const apiPreviewResearch = (file: File): Promise<ApiResponse<ResearchPreview>> => {
   const formData = new FormData();
@@ -61,4 +67,15 @@ export const apiDeleteResearch = (id: number): Promise<ApiResponse<string>> =>
   request({
     method: "delete",
     url: `/rag/docs/${id}`,
+  });
+
+export const apiSearchResearch = (data: {
+  query: string;
+  topK: number;
+}): Promise<ApiResponse<ResearchSearch>> =>
+  request({
+    method: "post",
+    url: "/rag/search",
+    data,
+    timeout: 60000,
   });
