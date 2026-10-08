@@ -40,9 +40,15 @@ export interface ResearchChunk {
   charCount: number;
 }
 
+export type ResearchMode = "vector" | "keyword" | "hybrid";
+
 export interface ResearchHit {
   rank: number;
   score: number;
+  vectorRank: number | null;
+  vectorScore: number | null;
+  keywordRank: number | null;
+  keywordScore: number | null;
   id: number;
   docId: number;
   chunkType: ResearchChunk["chunkType"];
@@ -58,9 +64,10 @@ export interface ResearchHit {
 }
 
 export interface ResearchSearch {
-  mode: "vector";
+  mode: ResearchMode;
   topK: number;
   stockCode: string | null;
+  keywordQuery: string | null;
   hits: ResearchHit[];
 }
 

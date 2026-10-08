@@ -2,6 +2,7 @@ import request, { type ApiResponse } from "../utils/request";
 import type {
   ResearchChunk,
   ResearchDoc,
+  ResearchMode,
   ResearchPreview,
   ResearchSearch,
   DroppedLine,
@@ -72,6 +73,7 @@ export const apiDeleteResearch = (id: number): Promise<ApiResponse<string>> =>
 export const apiSearchResearch = (data: {
   query: string;
   topK: number;
+  mode: ResearchMode;
 }): Promise<ApiResponse<ResearchSearch>> =>
   request({
     method: "post",
