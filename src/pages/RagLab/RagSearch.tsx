@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import axios from "axios";
 import { apiSearchResearch } from "@/apis/rag.api";
-import type { ResearchHit, ResearchMode } from "@/types/rag";
+import { MIN_SCORE_RANGE, type ResearchHit, type ResearchMode } from "@/types/rag";
 
 const MODE_OPTIONS: { value: ResearchMode; label: string }[] = [
   { value: "vector", label: "向量" },
@@ -39,7 +39,7 @@ const RagSearch: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [mode, setMode] = useState<ResearchMode>("hybrid");
   const [rerank, setRerank] = useState(false);
-  const [minScore, setMinScore] = useState("");
+  const [minScore, setMinScore] = useState(String(MIN_SCORE_RANGE.min));
   const [topK, setTopK] = useState(5);
   const [searching, setSearching] = useState(false);
   const [hits, setHits] = useState<ResearchHit[] | null>(null);
@@ -104,7 +104,8 @@ const RagSearch: React.FC = () => {
         </div>
         {rerank && (
           <p className="mt-2 text-xs text-gray-500">
-            问题和召回的前 20 条放在一起打分。低于阈值的结果变灰，仍留在表里。
+            问题和召回的前 20 条放在一起打分。低于阈值的结果变灰，仍留在表里。这批评测里阈值取{" "}
+            {MIN_SCORE_RANGE.min} 到 {MIN_SCORE_RANGE.max}，默认用下沿。
           </p>
         )}
         <textarea
@@ -126,7 +127,7 @@ const RagSearch: React.FC = () => {
             重排
           </button>
           <label className={`text-xs ${rerank ? "text-gray-500" : "text-gray-300"}`}>
-            阈值
+            阈值：建议[0.0134, 0.7419]
             <input
               type="number"
               step="0.01"
