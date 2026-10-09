@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
-import type { AiChatModel, AiTaskStatus } from "@/types/ai";
-import { streamParser } from "@/utils/streamParser";
+import type { AiChatModel, AiTaskStatus, ResearchCitation } from "@/types/ai";
+import { flushStreamTail, streamParser } from "@/utils/streamParser";
 import { myFetch } from "@/utils/myFetch";
 import useStore from "@/store";
 import { toast } from "sonner";
@@ -93,6 +93,14 @@ const useChatStream = (
         });
       };
 
+      const setSources = (sources: ResearchCitation[]) => {
+        setMessages((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          if (!lastMsg || lastMsg.role !== "ai") return prev;
+          return [...prev.slice(0, -1), { ...lastMsg, sources }];
+        });
+      };
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -100,14 +108,12 @@ const useChatStream = (
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
 
-        buffer = streamParser(buffer, updateLastMsgContent, updateSteps);
+        buffer = streamParser(buffer, updateLastMsgContent, updateSteps, setSources);
       }
 
-      // 如果流结束了肚子里还有残留，强制吐出
-      if (buffer) {
-        updateLastMsgContent(buffer);
-        buffer = "";
-      }
+      // 半截 [CITATIONS] 或 [S: 留在肚子里时不能写进正文，否则来源 JSON 会露在气泡末尾。
+      flushStreamTail(buffer, updateLastMsgContent);
+      buffer = "";
 
       setMessages((prev) => {
         const lastMsg = prev[prev.length - 1];
