@@ -160,26 +160,26 @@ const RagSearch: React.FC = () => {
           </button>
         </div>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto mt-4">
+      <div className="flex-1 min-h-0 flex flex-col mt-4">
         {matchedCode && (
-          <p className="mb-3 text-xs text-gray-500">已按股票代码 {matchedCode} 限定范围</p>
+          <p className="mb-3 shrink-0 text-xs text-gray-500">已按股票代码 {matchedCode} 限定范围</p>
         )}
         {hits && resultMode !== "vector" && keywordQuery !== searchedQuery && (
-          <p className="mb-3 text-xs text-gray-500">
+          <p className="mb-3 shrink-0 text-xs text-gray-500">
             {keywordQuery
               ? `关键词按「${keywordQuery}」检索，已去掉作为过滤条件的股票代码`
               : "去掉作为过滤条件的股票代码后，没有剩下可检索的词"}
           </p>
         )}
         {resultRerank && hits?.some((hit) => hit.dropped) && (
-          <p className="mb-3 text-xs text-gray-500">变灰的行低于阈值，不会交给模型。</p>
+          <p className="mb-3 shrink-0 text-xs text-gray-500">变灰的行低于阈值，不会交给模型。</p>
         )}
         {hits && hits.length === 0 && <p className="text-sm text-gray-400">没有找到相关片段</p>}
         {hits && hits.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
+          <div className="flex-1 min-h-0 overflow-auto">
+            <table className="w-full text-sm border-separate border-spacing-0">
+              <thead className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-white [&_th]:border-b [&_th]:border-gray-200">
+                <tr className="text-left text-xs text-gray-500">
                   {resultMode === "vector" && (
                     <th className="py-2 pr-2 font-medium whitespace-nowrap">
                       {resultRerank ? "向量名次" : "名次"}
@@ -217,7 +217,7 @@ const RagSearch: React.FC = () => {
                 {hits.map((hit) => (
                   <tr
                     key={hit.id}
-                    className={`border-b border-gray-100 align-top ${hit.dropped ? "text-gray-400" : ""}`}
+                    className={`align-top [&_td]:border-b [&_td]:border-gray-100 ${hit.dropped ? "text-gray-400" : ""}`}
                   >
                     {resultMode === "vector" && (
                       <td className="py-3 pr-2 text-gray-500">{rankText(hit.vectorRank)}</td>
