@@ -43,7 +43,7 @@ export interface ResearchChunk {
 export type ResearchMode = "vector" | "keyword" | "hybrid";
 
 // 与 retrieve.js 的评测区间一致。默认用下沿；调高不要超过上沿。
-export const MIN_SCORE_RANGE = { min: 0.0134, max: 0.7419 } as const;
+export const MIN_SCORE_RANGE = { min: 0.06, max: 0.7419 } as const;
 
 export interface ResearchHit {
   rank: number;

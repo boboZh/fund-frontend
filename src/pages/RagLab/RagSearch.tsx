@@ -127,7 +127,7 @@ const RagSearch: React.FC = () => {
             重排
           </button>
           <label className={`text-xs ${rerank ? "text-gray-500" : "text-gray-300"}`}>
-            阈值：建议[0.0134, 0.7419]
+            阈值：建议[0.06, 0.7419]
             <input
               type="number"
               step="0.01"

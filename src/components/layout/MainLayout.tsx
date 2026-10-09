@@ -25,12 +25,12 @@ const MainLayout: React.FC = () => {
   const menus = [
     // { name: "首页", path: "/", icon: Home },
     { name: "基金看板", path: "/", icon: LayoutDashboard },
-    { name: "AI 助手", path: "/chat", icon: Bot }, // 或者是 /chat，看你的路由配置
+    { name: "AI 助手", path: "/chat", icon: Bot },
+    { name: "研报入库", path: "/rag", icon: FileText, end: true },
+    { name: "研报检索", path: "/rag/search", icon: Search },
     { name: "音频 Demo", path: "/audio", icon: Music },
     // { name: "富文本", path: "/editor", icon: FileText },
     { name: "分片上传", path: "/upload", icon: Upload },
-    { name: "研报入库", path: "/rag", icon: FileText, end: true },
-    { name: "研报检索", path: "/rag/search", icon: Search },
     { name: "图片转视频", path: "/image-to-video", icon: Code },
   ];
 
