@@ -9,6 +9,7 @@ import {
   Upload,
   LogOut,
   FileText,
+  Search,
 } from "lucide-react";
 import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -28,7 +29,8 @@ const MainLayout: React.FC = () => {
     { name: "音频 Demo", path: "/audio", icon: Music },
     // { name: "富文本", path: "/editor", icon: FileText },
     { name: "分片上传", path: "/upload", icon: Upload },
-    { name: "研报检索", path: "/rag", icon: FileText },
+    { name: "研报入库", path: "/rag", icon: FileText, end: true },
+    { name: "研报检索", path: "/rag/search", icon: Search },
     { name: "图片转视频", path: "/image-to-video", icon: Code },
   ];
 
@@ -87,6 +89,7 @@ const MainLayout: React.FC = () => {
               <NavLink
                 key={menu.path}
                 to={menu.path}
+                end={"end" in menu ? menu.end : false}
                 className={({ isActive }) =>
                   `group flex items-center rounded-xl cursor-pointer transition-all ${
                     isOpen ? "px-3 py-2.5 gap-3" : "justify-center w-10 h-10 mx-auto"

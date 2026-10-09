@@ -74,6 +74,8 @@ export const apiSearchResearch = (data: {
   query: string;
   topK: number;
   mode: ResearchMode;
+  rerank?: boolean;
+  minScore?: number;
 }): Promise<ApiResponse<ResearchSearch>> =>
   request({
     method: "post",

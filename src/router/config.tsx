@@ -6,6 +6,7 @@ import AudioDemo from "@/pages/AudioDemo/AudioDemo";
 import ChunkUpload from "@/pages/Upload/ChunkUpload";
 import ImageToVideo from "@/pages/ImageToVideo/ImageToVideo";
 import RagLab from "@/pages/RagLab/RagLab";
+import RagSearch from "@/pages/RagLab/RagSearch";
 
 import { createBrowserRouter, type RouteObject } from "react-router-dom";
 import PermissionGuard from "./PermissionGuard";
@@ -49,6 +50,10 @@ const routes: RouteObject[] = [
       {
         path: "/rag",
         element: <RagLab />,
+      },
+      {
+        path: "/rag/search",
+        element: <RagSearch />,
       },
       {
         path: "/image-to-video",

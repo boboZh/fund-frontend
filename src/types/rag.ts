@@ -49,6 +49,11 @@ export interface ResearchHit {
   vectorScore: number | null;
   keywordRank: number | null;
   keywordScore: number | null;
+  rrfRank: number | null;
+  rrfScore: number | null;
+  rerankRank: number | null;
+  rerankScore: number | null;
+  dropped: boolean;
   id: number;
   docId: number;
   chunkType: ResearchChunk["chunkType"];
@@ -68,7 +73,10 @@ export interface ResearchSearch {
   topK: number;
   stockCode: string | null;
   keywordQuery: string | null;
+  rerank: boolean;
+  minScore: number | null;
   hits: ResearchHit[];
+  ranked: ResearchHit[] | null;
 }
 
 export interface DroppedLine {

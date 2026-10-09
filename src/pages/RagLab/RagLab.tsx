@@ -10,15 +10,12 @@ import {
   apiPreviewResearch,
   apiRechunkResearch,
   apiRetryResearch,
-  apiSearchResearch,
 } from "@/apis/rag.api";
 import type {
   DroppedLine,
   FilledFrom,
   ResearchChunk,
   ResearchDoc,
-  ResearchHit,
-  ResearchMode,
   ResearchSuggestion,
 } from "@/types/rag";
 
@@ -50,23 +47,6 @@ const HINT_TEXT: Record<FilledFrom, string> = {
   filename: "识别自文件名",
   pdf: "识别自正文",
 };
-
-const MODE_OPTIONS: { value: ResearchMode; label: string }[] = [
-  { value: "vector", label: "向量" },
-  { value: "keyword", label: "关键词" },
-  { value: "hybrid", label: "混合" },
-];
-
-const MODE_HINT: Record<ResearchMode, string> = {
-  vector: "按问题和段落的相似度，在当前账号已入库的研报里取前几条。",
-  keyword: "按全文里的词和数字取前几条。用来限定范围的股票代码会从关键词里去掉。",
-  hybrid: "向量和关键词各先取 20 条，按名次合并后，再留下前几条。",
-};
-
-const rankText = (value: number | null) => (value == null ? "—" : String(value));
-
-const scoreText = (value: number | null, digits = 3) =>
-  value == null || Number.isNaN(value) ? "—" : value.toFixed(digits);
 
 const errorMessage = (err: unknown, fallback: string) => {
   if (axios.isAxiosError(err)) {
@@ -104,15 +84,6 @@ const RagLab: React.FC = () => {
   const [maxChars, setMaxChars] = useState(800);
   const [overlap, setOverlap] = useState(1);
   const [rechunking, setRechunking] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [mode, setMode] = useState<ResearchMode>("hybrid");
-  const [topK, setTopK] = useState(5);
-  const [searching, setSearching] = useState(false);
-  const [hits, setHits] = useState<ResearchHit[] | null>(null);
-  const [resultMode, setResultMode] = useState<ResearchMode>("hybrid");
-  const [matchedCode, setMatchedCode] = useState<string | null>(null);
-  const [keywordQuery, setKeywordQuery] = useState<string | null>(null);
-  const [searchedQuery, setSearchedQuery] = useState("");
 
   const pending = docs.some((doc) => ["uploaded", "parsing", "embedding"].includes(doc.status));
   const activeDoc = docs.find((doc) => doc.id === activeId) || null;
@@ -246,24 +217,6 @@ const RagLab: React.FC = () => {
       setRefreshKey((value) => value + 1);
     } catch (err) {
       toast.error(errorMessage(err, "重试失败"));
-    }
-  };
-
-  const handleSearch = async () => {
-    const query = searchQuery.trim();
-    if (!query || searching) return;
-    setSearching(true);
-    try {
-      const result = await apiSearchResearch({ query, topK, mode });
-      setHits(result.data.hits || []);
-      setResultMode(result.data.mode);
-      setMatchedCode(result.data.stockCode);
-      setKeywordQuery(result.data.keywordQuery);
-      setSearchedQuery(query);
-    } catch (err) {
-      toast.error(errorMessage(err, "检索失败"));
-    } finally {
-      setSearching(false);
     }
   };
 
@@ -405,7 +358,7 @@ const RagLab: React.FC = () => {
         </div>
       </section>
 
-      <section className="w-[420px] shrink-0 h-full overflow-y-auto p-6 border-r border-gray-100">
+      <section className="flex-1 min-w-0 h-full overflow-y-auto p-6">
         {!activeDoc && <p className="text-sm text-gray-400">入库后在这里查看切出来的段落。</p>}
         {activeDoc && (
           <>
@@ -490,129 +443,6 @@ const RagLab: React.FC = () => {
             )}
           </>
         )}
-      </section>
-
-      <section className="flex-1 min-w-0 h-full flex flex-col overflow-hidden p-5">
-        <div className="shrink-0">
-          <h2 className="text-lg font-semibold">检索</h2>
-          <p className="mt-1 text-sm text-gray-500 leading-relaxed">{MODE_HINT[mode]}</p>
-          <div className="mt-4 flex gap-2">
-            {MODE_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={mode === option.value}
-                onClick={() => setMode(option.value)}
-                className={`h-8 px-3 rounded-lg text-sm ${
-                  mode === option.value
-                    ? "bg-indigo-600 text-white"
-                    : "border border-gray-200 text-gray-600"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="例如：广汇能源（600256）的目标价是多少"
-            rows={4}
-            className="mt-4 w-full px-3 py-2 rounded-lg border border-gray-200 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
-          />
-          <div className="mt-3 flex items-end gap-3">
-            <label className="text-xs text-gray-500">
-              top-k
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={topK}
-                onChange={(event) =>
-                  setTopK(Math.min(20, Math.max(1, Number(event.target.value) || 1)))
-                }
-                className="mt-1 block w-20 h-9 px-2 rounded-lg border border-gray-200 text-sm text-gray-900"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={handleSearch}
-              disabled={!searchQuery.trim() || searching}
-              className="h-9 px-4 rounded-lg bg-indigo-600 text-white text-sm font-medium disabled:bg-gray-200 disabled:text-gray-400"
-            >
-              {searching ? "检索中…" : "检索"}
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0 overflow-y-auto mt-4">
-        {matchedCode && (
-          <p className="mb-3 text-xs text-gray-500">已按股票代码 {matchedCode} 限定范围</p>
-        )}
-        {hits && resultMode !== "vector" && keywordQuery !== searchedQuery && (
-          <p className="mb-3 text-xs text-gray-500">
-            {keywordQuery
-              ? `关键词按「${keywordQuery}」检索，已去掉作为过滤条件的股票代码`
-              : "去掉作为过滤条件的股票代码后，没有剩下可检索的词"}
-          </p>
-        )}
-        {hits && hits.length === 0 && (
-          <p className="text-sm text-gray-400">没有找到相关片段</p>
-        )}
-        {hits && hits.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
-                  {resultMode !== "hybrid" && <th className="py-2 pr-2 font-medium">名次</th>}
-                  {resultMode === "vector" && <th className="py-2 pr-2 font-medium">余弦分</th>}
-                  {resultMode === "keyword" && <th className="py-2 pr-2 font-medium">全文分</th>}
-                  {resultMode === "hybrid" && (
-                    <>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap">向量名次</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap">余弦分</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap">关键词名次</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap">全文分</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap">融合名次</th>
-                      <th className="py-2 pr-2 font-medium whitespace-nowrap">融合分</th>
-                    </>
-                  )}
-                  <th className="py-2 pr-2 font-medium">标题</th>
-                  <th className="py-2 pr-2 font-medium whitespace-nowrap">页码</th>
-                  <th className="py-2 font-medium">正文</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hits.map((hit) => (
-                  <tr key={hit.id} className="border-b border-gray-100 align-top">
-                    {resultMode !== "hybrid" && (
-                      <td className="py-3 pr-2 text-gray-500">{hit.rank}</td>
-                    )}
-                    {resultMode === "vector" && (
-                      <td className="py-3 pr-2 tabular-nums">{scoreText(hit.score)}</td>
-                    )}
-                    {resultMode === "keyword" && (
-                      <td className="py-3 pr-2 tabular-nums">{scoreText(hit.score)}</td>
-                    )}
-                    {resultMode === "hybrid" && (
-                      <>
-                        <td className="py-3 pr-2 text-gray-500">{rankText(hit.vectorRank)}</td>
-                        <td className="py-3 pr-2 tabular-nums">{scoreText(hit.vectorScore)}</td>
-                        <td className="py-3 pr-2 text-gray-500">{rankText(hit.keywordRank)}</td>
-                        <td className="py-3 pr-2 tabular-nums">{scoreText(hit.keywordScore)}</td>
-                        <td className="py-3 pr-2 text-gray-500">{hit.rank}</td>
-                        <td className="py-3 pr-2 tabular-nums">{scoreText(hit.score, 4)}</td>
-                      </>
-                    )}
-                    <td className="py-3 pr-2 min-w-24">{hit.title}</td>
-                    <td className="py-3 pr-2 whitespace-nowrap text-gray-500">{pageLabel(hit)}</td>
-                    <td className="py-3 whitespace-pre-wrap leading-relaxed">{hit.content}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        </div>
       </section>
     </div>
   );
