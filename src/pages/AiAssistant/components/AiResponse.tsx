@@ -1,6 +1,7 @@
 import type { AiChatModel, ResearchCitation } from "@/types/ai";
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import AiSteps from "./AiSteps";
 import { AlertCircle, Ban } from "lucide-react";
 
@@ -51,10 +52,34 @@ const AiResponse: React.FC<AiResponseProps> = React.memo(
         {/* 给 Markdown 容器加上 gap，用 flex 替代 margin */}
         <div className="flex flex-col gap-2">
           <ReactMarkdown
+            // 默认解析器不认 GFM 表格，模型写出的 | 列会变成纯文本。
+            remarkPlugins={[remarkGfm]}
             components={{
               // 拦截 Markdown 中的 p 标签，强制去掉 margin，改用父级的 gap 撑开间距
               // eslint-disable-next-line
               p: ({ node, ...props }) => <p className="m-0 leading-relaxed" {...props} />,
+              // 气泡宽度有限，列多时在卡片内横向滚动，避免把整条消息撑出屏幕。
+              // eslint-disable-next-line
+              table: ({ node, ...props }) => (
+                <div className="my-1 w-full overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-xs" {...props} />
+                </div>
+              ),
+              // eslint-disable-next-line
+              thead: ({ node, ...props }) => (
+                <thead className="bg-gray-50 text-gray-500" {...props} />
+              ),
+              // eslint-disable-next-line
+              th: ({ node, ...props }) => (
+                <th
+                  className="border-b border-gray-200 px-3 py-2 font-medium whitespace-nowrap"
+                  {...props}
+                />
+              ),
+              // eslint-disable-next-line
+              td: ({ node, ...props }) => (
+                <td className="border-b border-gray-100 px-3 py-2 align-top" {...props} />
+              ),
               // eslint-disable-next-line
               a: ({ node, href, children, ...props }) => {
                 if (href?.startsWith("#source-")) {

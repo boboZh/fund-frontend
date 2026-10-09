@@ -243,7 +243,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
                     }`}
                   >
                     <div
-                      className={`flex gap-3 max-w-[85%] group ${
+                      className={`flex gap-3 max-w-[85%] min-w-0 group ${
                         msg.role === "user" ? "flex-row-reverse" : ""
                       }`}
                     >
@@ -260,7 +260,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, onChatLoaded, headerSl
 
                       {/* 消息气泡 */}
                       <div
-                        className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                        className={`min-w-0 p-4 rounded-2xl text-sm leading-relaxed ${
                           msg.role === "user"
                             ? "bg-indigo-600 text-white shadow-md shadow-indigo-100 rounded-tr-none"
                             : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-tl-none"
