@@ -19,7 +19,15 @@ import useStore from "@/store";
 import { useNavigate } from "react-router-dom";
 
 const MainLayout: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(true);
+  const SIDEBAR_OPENED_KEY = "sidebar_opened";
+  let isOpened = true;
+  try {
+    let cached = window.localStorage.getItem(SIDEBAR_OPENED_KEY);
+    if (cached) {
+      isOpened = JSON.parse(cached);
+    }
+  } catch {}
+  const [isOpen, setIsOpen] = useState(isOpened);
   const navigate = useNavigate();
   const { setLogout } = useStore();
   const menus = [
@@ -59,6 +67,11 @@ const MainLayout: React.FC = () => {
       duration: 5000,
     });
   };
+  const toggleOpen = (open) => {
+    console.log("toggle: ", open);
+    setIsOpen(open);
+    window.localStorage.setItem(SIDEBAR_OPENED_KEY, open);
+  };
   return (
     <div className="flex h-screen w-screen bg-white tex-gray-900 overflow-hidden">
       {/* 全局侧边栏 */}
@@ -74,7 +87,7 @@ const MainLayout: React.FC = () => {
             </h2>
           )}
           <button
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => toggleOpen(!isOpen)}
             className="p-2 rounded-lg hover:bg-gray-200 transition-colors flex-shrink-0 text-gray-500"
             title={isOpen ? "收起导航" : "展开导航"}
           >
