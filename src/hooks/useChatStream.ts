@@ -1,10 +1,73 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { AiChatModel, AiTaskStatus, ResearchCitation } from "@/types/ai";
 import { flushStreamTail, streamParser } from "@/utils/streamParser";
 import { myFetch } from "@/utils/myFetch";
 import useStore from "@/store";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
+
+type StepUpdate = { taskId: string; status: AiTaskStatus; text: string };
+
+type PendingStreamWrite = {
+  id: string | null;
+  content: string;
+  stepUpdates: StepUpdate[];
+  sources: ResearchCitation[] | null;
+  status: NonNullable<AiChatModel["status"]> | null;
+};
+
+const emptyPending = (): PendingStreamWrite => ({
+  id: null,
+  content: "",
+  stepUpdates: [],
+  sources: null,
+  status: null,
+});
+
+const hasPendingWork = (pending: PendingStreamWrite) =>
+  Boolean(pending.content || pending.stepUpdates.length || pending.sources || pending.status);
+
+/**
+ * 把同一帧内积压的正文增量、步骤、来源、终态一次性写进对应 id 的最后一条消息。
+ * 必须按 id 对齐：切会话或新开一轮后，迟到的 rAF 不能改到别的气泡。
+ */
+const applyPending = (prev: AiChatModel[], pending: PendingStreamWrite): AiChatModel[] => {
+  const lastMsg = prev[prev.length - 1];
+  if (!pending.id || lastMsg?.id !== pending.id) return prev;
+
+  let steps = lastMsg.steps;
+  if (pending.stepUpdates.length > 0) {
+    steps = [...(lastMsg.steps || [])];
+    for (const update of pending.stepUpdates) {
+      const idx = steps.findIndex((item) => item.id === update.taskId);
+      if (idx === -1) {
+        steps.push({ id: update.taskId, status: update.status, text: update.text });
+      } else {
+        steps[idx] = { ...steps[idx], status: update.status, text: update.text };
+      }
+    }
+  }
+
+  if (pending.status && steps && steps.length > 0) {
+    const nextSteps = [...steps];
+    nextSteps[nextSteps.length - 1] = {
+      ...nextSteps[nextSteps.length - 1],
+      status: pending.status,
+    };
+    steps = nextSteps;
+  }
+
+  return [
+    ...prev.slice(0, -1),
+    {
+      ...lastMsg,
+      content: lastMsg.content + pending.content,
+      ...(steps ? { steps } : {}),
+      ...(pending.sources ? { sources: pending.sources } : {}),
+      ...(pending.status ? { status: pending.status } : {}),
+    },
+  ];
+};
 
 const useChatStream = (
   pathSessionId: string | undefined,
@@ -16,58 +79,84 @@ const useChatStream = (
   const [isLoading, setIsLoading] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const pendingRef = useRef<PendingStreamWrite>(emptyPending());
+  const rafIdRef = useRef<number | null>(null);
 
-  // 处理聊天逻辑
+  const flushPending = useCallback(() => {
+    rafIdRef.current = null;
+    const pending = pendingRef.current;
+    if (!pending.id || !hasPendingWork(pending)) return;
+    pendingRef.current = { ...emptyPending(), id: pending.id };
+    setMessages((prev) => applyPending(prev, pending));
+  }, []);
+
+  const flushPendingNow = useCallback(() => {
+    if (rafIdRef.current != null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    flushPending();
+  }, [flushPending]);
+
+  // 同一帧内多次 read() 只提交一次。正文 / steps / sources 必须进同一条队列，
+  // 否则步骤条立刻 setState 时读到的 content 不含尚未 flush 的 token。
+  const scheduleFlush = useCallback(() => {
+    if (rafIdRef.current != null) return;
+    rafIdRef.current = requestAnimationFrame(flushPending);
+  }, [flushPending]);
+
+  const cancelPending = useCallback(() => {
+    if (rafIdRef.current != null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingRef.current = emptyPending();
+  }, []);
+
   const chat = async (userMsg: string, isRegenerate = false) => {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
+    cancelPending();
+    const aiMsgId = uuidv4();
+    pendingRef.current = { ...emptyPending(), id: aiMsgId };
+
     setIsLoading(true);
     const _sessionId = pathSessionId;
 
-    // 🌟 修复 1：统一收拢消息数组的构建逻辑
     setMessages((prev) => {
       const newMsgs = [...prev];
       if (isRegenerate) {
-        // 如果是重新生成，弹出最后那条失败的 AI 消息
         if (newMsgs[newMsgs.length - 1]?.role === "ai") {
           newMsgs.pop();
         }
-        // 注意：这里不用再 push user 消息了，因为上一条本来就是 user！
       } else {
-        // 正常提问，先 push 用户的消息
         newMsgs.push({ role: "user", content: userMsg, id: uuidv4() });
       }
 
-      // 无论如何，最后必定跟上一个全新的空 AI 消息气泡
-      newMsgs.push({ role: "ai", content: "", id: uuidv4() });
+      newMsgs.push({ role: "ai", content: "", id: aiMsgId });
       return newMsgs;
     });
 
-    // 更新消息的步骤条及状态
+    const updateLastMsgContent = (content: string) => {
+      if (!content) return;
+      pendingRef.current.content += content;
+      scheduleFlush();
+    };
+
     const updateSteps = (taskId: string, status: AiTaskStatus, text: string) => {
-      setMessages((prev) => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg.role !== "ai") return prev;
+      pendingRef.current.stepUpdates.push({ taskId, status, text });
+      scheduleFlush();
+    };
 
-        const newSteps = [...(lastMsg.steps || [])];
-        const curStep = newSteps.find((item) => item.id === taskId);
-
-        if (!curStep) {
-          newSteps.push({ id: taskId, status, text });
-        } else {
-          curStep.text = text;
-          curStep.status = status;
-        }
-
-        return [...prev.slice(0, -1), { ...lastMsg, steps: newSteps }];
-      });
+    const setSources = (sources: ResearchCitation[]) => {
+      pendingRef.current.sources = sources;
+      scheduleFlush();
     };
 
     let buffer = "";
 
     try {
-      // http://localhost:3000
       const response = await myFetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,22 +174,6 @@ const useChatStream = (
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
 
-      const updateLastMsgContent = (content: string) => {
-        setMessages((prev) => {
-          const lastMsg = prev[prev.length - 1];
-          if (!lastMsg) return prev;
-          return [...prev.slice(0, -1), { ...lastMsg, content: lastMsg.content + content }];
-        });
-      };
-
-      const setSources = (sources: ResearchCitation[]) => {
-        setMessages((prev) => {
-          const lastMsg = prev[prev.length - 1];
-          if (!lastMsg || lastMsg.role !== "ai") return prev;
-          return [...prev.slice(0, -1), { ...lastMsg, sources }];
-        });
-      };
-
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -115,20 +188,13 @@ const useChatStream = (
       flushStreamTail(buffer, updateLastMsgContent);
       buffer = "";
 
-      setMessages((prev) => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.role !== "ai") return prev;
-        const newSteps = lastMsg.steps || [];
-        if (newSteps.length > 0) {
-          newSteps[newSteps.length - 1].status = "success";
-        }
-        return [...prev.slice(0, -1), { ...lastMsg, status: "success", steps: newSteps }];
-      });
+      pendingRef.current.status = "success";
+      flushPendingNow();
 
       afterChatFinished(_sessionId || "");
     } catch (err) {
       console.log("aichat err: ", err);
-      let status: AiTaskStatus = "error";
+      let status: NonNullable<AiChatModel["status"]> = "error";
 
       if (err instanceof Error && err.name === "AbortError") {
         console.log("用户主动终止了请求");
@@ -137,27 +203,18 @@ const useChatStream = (
         toast.error(err instanceof Error ? err.message : "请求失败，请稍后再试");
       }
 
-      setMessages((prev) => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.role !== "ai") return prev;
-
-        const newSteps = lastMsg.steps || [];
-        if (newSteps.length > 0) {
-          newSteps[newSteps.length - 1].status = status; // 这里 status 是 error 或 abort
-        }
-
-        return [...prev.slice(0, -1), { ...lastMsg, status, steps: newSteps }];
-      });
+      pendingRef.current.status = status;
+      flushPendingNow();
     } finally {
+      // isLoading 期间发送入口被禁用，同一时刻只会有一轮 chat，这里可以直接收尾。
+      cancelPending();
       setIsLoading(false);
       abortControllerRef.current = null;
     }
   };
 
-  // 重新生成
   const handleRegenerate = async () => {
     if (!pathSessionId) return;
-    // 找到上一条用户发的消息
     const lastUserMsg = messages
       .slice()
       .reverse()
@@ -176,10 +233,15 @@ const useChatStream = (
   };
 
   const stopChat = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    abortControllerRef.current?.abort();
   }, []);
+
+  useEffect(() => {
+    return () => {
+      cancelPending();
+      abortControllerRef.current?.abort();
+    };
+  }, [pathSessionId, cancelPending]);
 
   return {
     input,
