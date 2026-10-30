@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env NODE_ENV=development vite --mode development",
+    "dev:debug": "cross-env NODE_ENV=development VITE_CHAT_IMMEDIATE=true vite --mode development",
     "prod": "cross-env NODE_ENV=production vite --mode production",
     "build": "vite build",
     "build:ts": "tsc -b && vite build",

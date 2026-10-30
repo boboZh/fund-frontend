@@ -5,6 +5,7 @@ import { myFetch } from "@/utils/myFetch";
 import useStore from "@/store";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
+import { replayChatResponse } from "@/utils/replayChat";
 
 type StepUpdate = { taskId: string; status: AiTaskStatus; text: string };
 
@@ -16,6 +17,8 @@ type PendingStreamWrite = {
   status: NonNullable<AiChatModel["status"]> | null;
 };
 
+const debug = import.meta.env.VITE_CHAT_IMMEDIATE === "true";
+console.log("debugL: ", debug);
 const emptyPending = (): PendingStreamWrite => ({
   id: null,
   content: "",
@@ -31,6 +34,7 @@ const hasPendingWork = (pending: PendingStreamWrite) =>
  * 把同一帧内积压的正文增量、步骤、来源、终态一次性写进对应 id 的最后一条消息。
  * 必须按 id 对齐：切会话或新开一轮后，迟到的 rAF 不能改到别的气泡。
  */
+
 const applyPending = (prev: AiChatModel[], pending: PendingStreamWrite): AiChatModel[] => {
   const lastMsg = prev[prev.length - 1];
   if (!pending.id || lastMsg?.id !== pending.id) return prev;
@@ -138,18 +142,56 @@ const useChatStream = (
       return newMsgs;
     });
 
+    const updateLastMsgContentImmediate = (content: string) => {
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (!lastMsg) return prev;
+        return [...prev.slice(0, -1), { ...lastMsg, content: lastMsg.content + content }];
+      });
+    };
+
+    const setSourcesImmediate = (sources: ResearchCitation[]) => {
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (!lastMsg || lastMsg.role !== "ai") return prev;
+        return [...prev.slice(0, -1), { ...lastMsg, sources }];
+      });
+    };
+
+    const updateStepsImmediate = (taskId: string, status: AiTaskStatus, text: string) => {
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg.role !== "ai") return prev;
+
+        const newSteps = [...(lastMsg.steps || [])];
+        const curStep = newSteps.find((item) => item.id === taskId);
+
+        if (!curStep) {
+          newSteps.push({ id: taskId, status, text });
+        } else {
+          curStep.text = text;
+          curStep.status = status;
+        }
+
+        return [...prev.slice(0, -1), { ...lastMsg, steps: newSteps }];
+      });
+    };
+
     const updateLastMsgContent = (content: string) => {
       if (!content) return;
+      if (debug) return updateLastMsgContentImmediate(content);
       pendingRef.current.content += content;
       scheduleFlush();
     };
 
     const updateSteps = (taskId: string, status: AiTaskStatus, text: string) => {
+      if (debug) return updateStepsImmediate(taskId, status, text);
       pendingRef.current.stepUpdates.push({ taskId, status, text });
       scheduleFlush();
     };
 
     const setSources = (sources: ResearchCitation[]) => {
+      if (debug) return setSourcesImmediate(sources);
       pendingRef.current.sources = sources;
       scheduleFlush();
     };
@@ -157,32 +199,41 @@ const useChatStream = (
     let buffer = "";
 
     try {
-      const response = await myFetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: userMsg,
-          sessionId: _sessionId,
-          isRegenerate,
-          userNickname: user?.nickname || "用户",
-        }),
-        credentials: "include",
-        signal: abortController.signal,
-      });
+      // const response = await myFetch("/api/ai/chat", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({
+      //     message: userMsg,
+      //     sessionId: _sessionId,
+      //     isRegenerate,
+      //     userNickname: user?.nickname || "用户",
+      //   }),
+      //   credentials: "include",
+      //   signal: abortController.signal,
+      // });
+
+      const response = replayChatResponse();
 
       if (!response.body) return;
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
+
+      // const recorded: { t: number; text: string }[] = [];
+      // const t0 = performance.now();
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
+
+        // recorded.push({ t: performance.now() - t0, text: chunk });
         buffer += chunk;
 
         buffer = streamParser(buffer, updateLastMsgContent, updateSteps, setSources);
       }
+
+      // console.log("recorded: ", JSON.stringify(recorded));
 
       // 半截 [CITATIONS] 或 [S: 留在肚子里时不能写进正文，否则来源 JSON 会露在气泡末尾。
       flushStreamTail(buffer, updateLastMsgContent);
