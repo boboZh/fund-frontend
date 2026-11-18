@@ -20,6 +20,16 @@ const run = (chunks: string[]) => {
 };
 
 describe("streamParser", () => {
+  it("网页来源可先于流式正文到达，半截联网引用不会变成网址", () => {
+    const payload = { sources: [{ type: "web", ref: 2, title: "公司公告", url: "https://example.com/report", content: "摘要" }] };
+    const { text, sources } = run([
+      `[CITATIONS]${JSON.stringify(payload)}[/CITATIONS]`,
+      "联网结论[W", "2]。",
+    ]);
+    expect(text).toBe("联网结论[W2]。");
+    expect(text).not.toContain("https://");
+    expect(sources).toEqual([payload.sources]);
+  });
   it("步骤条仍然按第一个 ] 结束", () => {
     const { text, steps } = run(["正文[S:task_1:loading:正在检索公司研报]后续"]);
     expect(steps).toEqual(["task_1:loading:正在检索公司研报"]);

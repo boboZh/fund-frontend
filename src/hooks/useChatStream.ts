@@ -31,7 +31,7 @@ const hasPendingWork = (pending: PendingStreamWrite) =>
  * 把同一帧内积压的正文增量、步骤、来源、终态一次性写进对应 id 的最后一条消息。
  * 必须按 id 对齐：切会话或新开一轮后，迟到的 rAF 不能改到别的气泡。
  */
-const applyPending = (prev: AiChatModel[], pending: PendingStreamWrite): AiChatModel[] => {
+export const applyPending = (prev: AiChatModel[], pending: PendingStreamWrite): AiChatModel[] => {
   const lastMsg = prev[prev.length - 1];
   if (!pending.id || lastMsg?.id !== pending.id) return prev;
 
@@ -64,7 +64,7 @@ const applyPending = (prev: AiChatModel[], pending: PendingStreamWrite): AiChatM
       content: lastMsg.content + pending.content,
       ...(steps ? { steps } : {}),
       ...(pending.sources ? { sources: pending.sources } : {}),
-      ...(pending.status ? { status: pending.status } : {}),
+      ...(pending.status ? { status: pending.status, isStreaming: false } : {}),
     },
   ];
 };
@@ -134,7 +134,7 @@ const useChatStream = (
         newMsgs.push({ role: "user", content: userMsg, id: uuidv4() });
       }
 
-      newMsgs.push({ role: "ai", content: "", id: aiMsgId });
+      newMsgs.push({ role: "ai", content: "", id: aiMsgId, isStreaming: true });
       return newMsgs;
     });
 
@@ -170,7 +170,7 @@ const useChatStream = (
         signal: abortController.signal,
       });
 
-      if (!response.body) return;
+      if (!response.body) throw new Error("响应流为空，请重试");
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
 

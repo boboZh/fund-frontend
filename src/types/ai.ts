@@ -9,6 +9,9 @@ export interface MessageStep {
 }
 
 export interface ResearchCitation {
+  type?: "web";
+  url?: string;
+  publishedDate?: string | null;
   id?: number;
   ref: number;
   title: string;
@@ -20,6 +23,7 @@ export interface ResearchCitation {
 }
 
 export interface AiChatModel {
+  isStreaming?: boolean;
   content: string;
   role: "ai" | "user";
   steps?: MessageStep[];
