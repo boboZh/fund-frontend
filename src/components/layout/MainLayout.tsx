@@ -4,13 +4,13 @@ import {
   User,
   LayoutDashboard,
   Bot,
-  Music,
-  Code,
-  Upload,
   LogOut,
   FileText,
   Search,
 } from "lucide-react";
+// Music,
+// Code,
+// Upload,
 import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { toast } from "sonner";
