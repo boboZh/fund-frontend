@@ -2,8 +2,10 @@
 
 ## 当前范围
 
-本次只补齐镜像构建、健康检查和 GHCR 发布。`cd.yml` 已替换旧部署逻辑：发布镜像后不会 SSH、SCP、重载 PM2 或切换线上入口。现有服务器服务继续运行。
-尚未包含生产 Compose、服务器部署脚本、自动回滚或数据搬迁，先不要删除旧服务和目录。
+已包含镜像构建、健康检查、GHCR 发布，以及可选的 SSH 自动部署。自动部署默认关闭：先安装并验证共享部署脚本，再配置仓库变量 `DEPLOY_ENABLED=true`。
+手动发布默认只推送镜像，勾选 deploy 后才更新服务器；启用开关后，版本 tag 发布会自动部署。
+SSH 使用专用部署密钥、受限的 `fund-deploy` 入口；密钥口令通过 `SERVER_SSH_PASSPHRASE` 提供。先安装 deploy-ssh.py 并验证新公钥限制，再运行更新后的工作流。
+服务器安装步骤、Secrets、发布记录和回退说明统一见 fund-backend 仓库的 `deploy/README.md`。旧目录等自动更新验收后再清理。
 
 ## 本地构建
 
@@ -31,7 +33,7 @@ docker build -t fund-frontend:local .
 
 - 多阶段构建：Node 22 打包，Nginx 提供静态资源。构建默认 `VITE_API_BASE_URL=/api`；这只是公开构建参数，不可传入密钥。
 - 使用 `npm ci --legacy-peer-deps`，与镜像及发布任务保持一致。
-- Nginx 默认代理到同一 Docker 网络的 `backend:9000`，保留完整 `/api/...` 路径。
+- 镜像内 Nginx 默认代理到 `backend:9000`。当前生产挂载 `/opt/fund/nginx/frontend.conf`，使用主机网络，监听 `127.0.0.1:18080` 并代理到 `127.0.0.1:9000`；宿主机 Nginx 负责公网 80。
 - 已配置 SPA 回退、SSE 禁用缓冲、WebSocket、100 MiB 上传上限、600 秒代理超时、跨域隔离头。入口 Nginx 也必须允许对应大小和超时。
 - `/healthz` 仅检查前端 Nginx；不能证明后端可用。
 - 音频 WebSocket 跟随网页域名及 HTTP/HTTPS；Vite 开发代理已启用 WebSocket。
