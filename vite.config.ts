@@ -5,8 +5,6 @@ import path from "path";
 const proxyTarget =
   process.env.NODE_ENV === "development" ? "http://127.0.0.1:9000" : "http://112.126.27.148";
 
-console.log("proxy: ", proxyTarget);
-
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -32,6 +30,7 @@ export default defineConfig({
         target: proxyTarget,
         //
         changeOrigin: true,
+        ws: true,
         // rewrite: path => path.replace()
       },
     },

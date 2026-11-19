@@ -18,9 +18,9 @@ const AudioDemo: React.FC = () => {
     }
 
     // 2. 连接后端 WebSocket
-    const host =
-      process.env.NODE_ENV === "development" ? "ws://127.0.0.1:9000" : "ws://112.126.27.148";
-    const ws = new WebSocket(`${host}/api/audio-stream`); // 改成你后端的真实地址
+    const url = new URL("/api/audio-stream", window.location.href);
+    url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(url);
     ws.binaryType = "arraybuffer"; // 声明接收的是二进制原裸流
 
     ws.onopen = () => {

@@ -22,11 +22,13 @@ const MainLayout: React.FC = () => {
   const SIDEBAR_OPENED_KEY = "sidebar_opened";
   let isOpened = true;
   try {
-    let cached = window.localStorage.getItem(SIDEBAR_OPENED_KEY);
+    const cached = window.localStorage.getItem(SIDEBAR_OPENED_KEY);
     if (cached) {
       isOpened = JSON.parse(cached);
     }
-  } catch {}
+  } catch {
+    // Ignore unavailable or invalid local storage and keep the default state.
+  }
   const [isOpen, setIsOpen] = useState(isOpened);
   const navigate = useNavigate();
   const { setLogout } = useStore();
@@ -36,10 +38,10 @@ const MainLayout: React.FC = () => {
     { name: "AI 助手", path: "/chat", icon: Bot },
     { name: "研报入库", path: "/rag", icon: FileText, end: true },
     { name: "研报检索", path: "/rag/search", icon: Search },
-    { name: "音频 Demo", path: "/audio", icon: Music },
+    // { name: "音频 Demo", path: "/audio", icon: Music },
     // { name: "富文本", path: "/editor", icon: FileText },
-    { name: "分片上传", path: "/upload", icon: Upload },
-    { name: "图片转视频", path: "/image-to-video", icon: Code },
+    // { name: "分片上传", path: "/upload", icon: Upload },
+    // { name: "图片转视频", path: "/image-to-video", icon: Code },
   ];
 
   const handleLogout = () => {
